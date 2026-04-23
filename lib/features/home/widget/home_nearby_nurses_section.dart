@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/config/app_config.dart';
+import '../../../core/helpers/currency_formatter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../controller/home_controller.dart';
 import '../data/models/nurse_model.dart';
@@ -59,21 +61,25 @@ class HomeNearbyNursesSection extends StatelessWidget {
             return const _NearbyNursesEmpty();
           }
 
-          return Column(
-            children: List.generate(controller.nearbyNurses.length, (index) {
-              final nurse = controller.nearbyNurses[index];
-              final accent = _accentFor(index);
+          return SizedBox(
+            height: 236,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: controller.nearbyNurses.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, index) {
+                final nurse = controller.nearbyNurses[index];
+                final accent = _accentFor(index);
 
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: index == controller.nearbyNurses.length - 1 ? 0 : 12,
-                ),
-                child: _NurseCard(
-                  nurse: nurse,
-                  accent: accent,
-                ),
-              );
-            }),
+                return SizedBox(
+                  width: 228,
+                  child: _NurseCard(
+                    nurse: nurse,
+                    accent: accent,
+                  ),
+                );
+              },
+            ),
           );
         }),
       ],
@@ -110,12 +116,7 @@ class _NurseCard extends StatelessWidget {
   }
 
   String _formatFee(String rawFee) {
-    final parsedFee = double.tryParse(rawFee);
-    if (parsedFee == null) {
-      return 'Biaya belum diatur';
-    }
-
-    return 'Rp${parsedFee.toStringAsFixed(0)}';
+    return CurrencyFormatter.formatRupiahFromString(rawFee);
   }
 
   @override
@@ -128,78 +129,84 @@ class _NurseCard extends StatelessWidget {
     final specialization = (partner?.specialization ?? '').trim().isEmpty
         ? 'Perawat'
         : partner!.specialization;
-    final workLocation = (partner?.workLocation ?? '').trim().isEmpty
-        ? 'Lokasi kerja belum tersedia'
-        : partner!.workLocation;
+    final photoUrl = _resolvePhotoUrl(partner?.photoUrl ?? '');
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: border),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Icon(
-              Icons.health_and_safety_rounded,
-              color: accent,
-              size: 30,
-            ),
+          Row(
+            children: [
+              _NursePhoto(
+                photoUrl: photoUrl,
+                accent: accent,
+              ),
+              const Spacer(),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: accent,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
+          const SizedBox(height: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   nurse.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   specialization,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
                     color: muted,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  workLocation,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: muted,
-                    height: 1.35,
-                    fontWeight: FontWeight.w500,
+                  _formatFee(partner?.consultationFee ?? ''),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFF59E0B),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 6,
+                  runSpacing: 6,
                   children: [
                     _InfoChip(
                       icon: Icons.place_rounded,
                       label: _formatDistance(nurse.distanceKm),
                       color: accent,
-                    ),
-                    _InfoChip(
-                      icon: Icons.payments_rounded,
-                      label: _formatFee(partner?.consultationFee ?? ''),
-                      color: const Color(0xFFF59E0B),
                     ),
                     _InfoChip(
                       icon: partner?.isAvailable == true
@@ -214,36 +221,86 @@ class _NurseCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if ((partner?.bio ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Text(
-                    partner!.bio,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: muted,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              Icons.chevron_right_rounded,
-              color: accent,
-            ),
-          ),
         ],
+      ),
+    );
+  }
+
+  String? _resolvePhotoUrl(String rawUrl) {
+    if (rawUrl.trim().isEmpty) {
+      return null;
+    }
+
+    final uri = Uri.tryParse(rawUrl.trim());
+    if (uri == null) {
+      return null;
+    }
+
+    if (uri.hasScheme) {
+      return uri.toString();
+    }
+
+    final normalizedPath = rawUrl.startsWith('/') ? rawUrl : '/$rawUrl';
+    return '${AppConfig.baseUrl}$normalizedPath';
+  }
+}
+
+class _NursePhoto extends StatelessWidget {
+  const _NursePhoto({
+    required this.photoUrl,
+    required this.accent,
+  });
+
+  final String? photoUrl;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = _DefaultNursePhoto(accent: accent);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+              width: 72,
+              height: 72,
+        child: photoUrl == null
+            ? fallback
+            : Image.network(
+                photoUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => fallback,
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) {
+                    return child;
+                  }
+
+                  return fallback;
+                },
+              ),
+      ),
+    );
+  }
+}
+
+class _DefaultNursePhoto extends StatelessWidget {
+  const _DefaultNursePhoto({
+    required this.accent,
+  });
+
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: accent.withValues(alpha: 0.12),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.person_rounded,
+        color: accent,
+        size: 36,
       ),
     );
   }
@@ -263,7 +320,7 @@ class _InfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
@@ -271,13 +328,13 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 5),
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
           ),
