@@ -3,18 +3,18 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 
 import '../../../core/errors/app_exception.dart';
-import '../data/datasources/nurse_remote_data_source.dart';
-import '../data/models/nurse_model.dart';
+import '../../nurse/domain/entities/nurse_entity.dart';
+import '../../nurse/domain/usecases/get_nurses_use_case.dart';
 
 class HomeController extends GetxController {
-  HomeController(this._nurseRemoteDataSource);
+  HomeController(this._getNursesUseCase);
 
-  final NurseRemoteDataSource _nurseRemoteDataSource;
+  final GetNursesUseCase _getNursesUseCase;
 
   final RxInt selectedBottomNavIndex = 0.obs;
   final Rx<LocationBannerState> locationState =
       const LocationBannerState.loading().obs;
-  final RxList<NurseModel> nearbyNurses = <NurseModel>[].obs;
+  final RxList<NurseEntity> nearbyNurses = <NurseEntity>[].obs;
   final RxBool isLoadingNurses = false.obs;
   final RxnString nurseErrorMessage = RxnString();
 
@@ -141,7 +141,7 @@ class HomeController extends GetxController {
       final effectiveLatitude = latitude ?? _currentPosition?.latitude;
       final effectiveLongitude = longitude ?? _currentPosition?.longitude;
 
-      final nurses = await _nurseRemoteDataSource.getNurses(
+      final nurses = await _getNursesUseCase(
         search: search,
         specialization: specialization,
         isAvailable: isAvailable,

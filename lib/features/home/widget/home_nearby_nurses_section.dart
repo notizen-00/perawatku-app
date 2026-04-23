@@ -4,8 +4,8 @@ import 'package:get/get.dart';
 import '../../../core/config/app_config.dart';
 import '../../../core/helpers/currency_formatter.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../nurse/domain/entities/nurse_entity.dart';
 import '../controller/home_controller.dart';
-import '../data/models/nurse_model.dart';
 
 class HomeNearbyNursesSection extends StatelessWidget {
   const HomeNearbyNursesSection({super.key});
@@ -104,7 +104,7 @@ class _NurseCard extends StatelessWidget {
     required this.accent,
   });
 
-  final NurseModel nurse;
+  final NurseEntity nurse;
   final Color accent;
 
   String _formatDistance(double? distanceKm) {
@@ -264,8 +264,8 @@ class _NursePhoto extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: SizedBox(
-              width: 72,
-              height: 72,
+        width: 72,
+        height: 72,
         child: photoUrl == null
             ? fallback
             : Image.network(

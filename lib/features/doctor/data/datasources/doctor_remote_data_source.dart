@@ -1,55 +1,51 @@
 import '../../../../core/constants/app_endpoints.dart';
 import '../../../../core/network/api_client.dart';
-import '../models/nurse_model.dart';
+import '../models/doctor_model.dart';
 
-abstract class NurseRemoteDataSource {
-  Future<List<NurseModel>> getNurses({
+abstract class DoctorRemoteDataSource {
+  Future<List<DoctorModel>> getDoctors({
     String? search,
     String? specialization,
     bool? isAvailable,
     int? limit,
-    int? patientAddressId,
     double? latitude,
     double? longitude,
     double? maxDistanceKm,
   });
 }
 
-class NurseRemoteDataSourceImpl implements NurseRemoteDataSource {
-  NurseRemoteDataSourceImpl({
+class DoctorRemoteDataSourceImpl implements DoctorRemoteDataSource {
+  DoctorRemoteDataSourceImpl({
     required ApiClient apiClient,
   }) : _apiClient = apiClient;
 
   final ApiClient _apiClient;
 
   @override
-  Future<List<NurseModel>> getNurses({
+  Future<List<DoctorModel>> getDoctors({
     String? search,
     String? specialization,
     bool? isAvailable,
     int? limit,
-    int? patientAddressId,
     double? latitude,
     double? longitude,
     double? maxDistanceKm,
   }) async {
     final response = await _apiClient.get(
-      AppEndpoints.patientNurses,
+      AppEndpoints.patientDoctors,
       queryParameters: {
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
         if (specialization != null && specialization.trim().isNotEmpty)
           'specialization': specialization.trim(),
         if (isAvailable != null) 'is_available': isAvailable,
         if (limit != null) 'limit': limit,
-        if (patientAddressId != null) 'patient_address_id': patientAddressId,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
         if (maxDistanceKm != null) 'max_distance_km': maxDistanceKm,
       },
     );
 
-    final items = _extractItems(response);
-    return items.map(NurseModel.fromJson).toList();
+    return _extractItems(response).map(DoctorModel.fromJson).toList();
   }
 
   List<Map<String, dynamic>> _extractItems(Map<String, dynamic> response) {
@@ -65,9 +61,9 @@ class NurseRemoteDataSourceImpl implements NurseRemoteDataSource {
       }
     }
 
-    final nurses = response['nurses'];
-    if (nurses is List) {
-      return nurses.whereType<Map<String, dynamic>>().toList();
+    final doctors = response['doctors'];
+    if (doctors is List) {
+      return doctors.whereType<Map<String, dynamic>>().toList();
     }
 
     return <Map<String, dynamic>>[];

@@ -1,17 +1,18 @@
+import '../../domain/entities/nurse_entity.dart';
 import 'nurse_partner_profile_model.dart';
 
-class NurseModel {
+class NurseModel extends NurseEntity {
   const NurseModel({
-    required this.id,
-    required this.name,
-    required this.email,
-    required this.role,
-    required this.phone,
-    required this.emailVerifiedAt,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.distanceKm,
-    required this.partnerProfile,
+    required super.id,
+    required super.name,
+    required super.email,
+    required super.role,
+    required super.phone,
+    required super.emailVerifiedAt,
+    required super.createdAt,
+    required super.updatedAt,
+    required super.distanceKm,
+    required super.partnerProfile,
   });
 
   factory NurseModel.fromJson(Map<String, dynamic> json) {
@@ -44,15 +45,4 @@ class NurseModel {
 
     return double.tryParse(value.toString());
   }
-
-  final int id;
-  final String name;
-  final String email;
-  final String role;
-  final String phone;
-  final String? emailVerifiedAt;
-  final String createdAt;
-  final String updatedAt;
-  final double? distanceKm;
-  final NursePartnerProfileModel? partnerProfile;
 }

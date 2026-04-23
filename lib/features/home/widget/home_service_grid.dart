@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
+import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 
 class HomeServiceGrid extends StatelessWidget {
@@ -48,44 +50,53 @@ class _GridServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final routeName = switch (item.label) {
+      'Dokter' => AppRoutes.doctors,
+      'Perawat' => AppRoutes.nurses,
+      _ => null,
+    };
 
-    return Column(
-      children: [
-        Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF12211F) : AppColors.softWhite,
-            borderRadius: BorderRadius.circular(22),
-            gradient: item.label == 'Lainnya'
-                ? null
-                : LinearGradient(
-                    colors: [
-                      AppColors.secondary.withValues(alpha: 0.22),
-                      AppColors.primary.withValues(alpha: 0.12),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+    return InkWell(
+      onTap: routeName == null ? null : () => Get.toNamed(routeName),
+      borderRadius: BorderRadius.circular(22),
+      child: Column(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF12211F) : AppColors.softWhite,
+              borderRadius: BorderRadius.circular(22),
+              gradient: item.label == 'Lainnya'
+                  ? null
+                  : LinearGradient(
+                      colors: [
+                        AppColors.secondary.withValues(alpha: 0.22),
+                        AppColors.primary.withValues(alpha: 0.12),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+            ),
+            child: Icon(
+              item.icon,
+              size: item.label == 'Lainnya' ? 34 : 32,
+              color: item.label == 'Lainnya'
+                  ? (isDark ? AppColors.darkText : const Color(0xFF4A4A4A))
+                  : AppColors.primary,
+            ),
           ),
-          child: Icon(
-            item.icon,
-            size: item.label == 'Lainnya' ? 34 : 32,
-            color: item.label == 'Lainnya'
-                ? (isDark ? AppColors.darkText : const Color(0xFF4A4A4A))
-                : AppColors.primary,
+          const SizedBox(height: 8),
+          Text(
+            item.label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          item.label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

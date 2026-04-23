@@ -2,8 +2,13 @@ import 'package:get/get.dart';
 
 import '../../features/auth/presentation/bindings/auth_binding.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/doctor/presentation/bindings/doctor_binding.dart';
+import '../../features/doctor/presentation/pages/doctor_chat_page.dart';
+import '../../features/doctor/presentation/pages/doctor_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/home/screen/search_page.dart';
+import '../../features/nurse/presentation/bindings/nurse_binding.dart';
+import '../../features/nurse/presentation/pages/nurse_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -22,6 +27,20 @@ class AppPages {
     GetPage(
       name: AppRoutes.search,
       page: () => SearchPage(),
+    ),
+    GetPage(
+      name: AppRoutes.nurses,
+      page: () => const NursePage(),
+      binding: NurseBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.doctors,
+      page: () => const DoctorPage(),
+      binding: DoctorBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.doctorChat,
+      page: () => const DoctorChatPage(),
     ),
   ];
 }

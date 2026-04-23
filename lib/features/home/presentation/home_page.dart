@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../account/presentation/account_page.dart';
-import '../data/datasources/nurse_remote_data_source.dart';
+import '../../nurse/domain/usecases/get_nurses_use_case.dart';
 import '../controller/home_controller.dart';
 import '../widget/home_bottom_bar.dart';
 import '../widget/home_dashboard_content.dart';
@@ -15,9 +15,7 @@ class MedicHomePage extends StatelessWidget {
       ? Get.find<HomeController>()
       : Get.put(
           HomeController(
-            NurseRemoteDataSourceImpl(
-              apiClient: Get.find(),
-            ),
+            Get.find<GetNursesUseCase>(),
           ),
         );
 

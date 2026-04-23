@@ -1,24 +1,26 @@
-class NursePartnerProfileModel {
-  const NursePartnerProfileModel({
-    required this.id,
-    required this.userId,
-    required this.profession,
-    this.photoUrl,
-    required this.specialization,
-    required this.licenseNumber,
-    required this.workLocation,
-    required this.latitude,
-    required this.longitude,
-    required this.yearsOfExperience,
-    required this.consultationFee,
-    required this.isAvailable,
-    required this.bio,
-    required this.createdAt,
-    required this.updatedAt,
+import '../../domain/entities/doctor_profile_entity.dart';
+
+class DoctorProfileModel extends DoctorProfileEntity {
+  const DoctorProfileModel({
+    required super.id,
+    required super.userId,
+    required super.profession,
+    required super.photoUrl,
+    required super.specialization,
+    required super.licenseNumber,
+    required super.workLocation,
+    required super.latitude,
+    required super.longitude,
+    required super.yearsOfExperience,
+    required super.consultationFee,
+    required super.isAvailable,
+    required super.bio,
+    required super.createdAt,
+    required super.updatedAt,
   });
 
-  factory NursePartnerProfileModel.fromJson(Map<String, dynamic> json) {
-    return NursePartnerProfileModel(
+  factory DoctorProfileModel.fromJson(Map<String, dynamic> json) {
+    return DoctorProfileModel(
       id: json['id'] as int? ?? 0,
       userId: json['user_id'] as int? ?? 0,
       profession: json['profession'] as String? ?? '',
@@ -36,22 +38,6 @@ class NursePartnerProfileModel {
       updatedAt: json['updated_at'] as String? ?? '',
     );
   }
-
-  final int id;
-  final int userId;
-  final String profession;
-  final String? photoUrl;
-  final String specialization;
-  final String licenseNumber;
-  final String workLocation;
-  final String latitude;
-  final String longitude;
-  final int yearsOfExperience;
-  final String consultationFee;
-  final bool isAvailable;
-  final String bio;
-  final String createdAt;
-  final String updatedAt;
 
   static String? _readPhotoUrl(Map<String, dynamic> json) {
     const keys = [
