@@ -5,14 +5,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
 
 class HomeTopHeader extends StatelessWidget {
-  const HomeTopHeader({
-    super.key,
-    required this.isDarkMode,
-    required this.onToggleTheme,
-  });
-
-  final bool isDarkMode;
-  final VoidCallback onToggleTheme;
+  const HomeTopHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -62,13 +55,6 @@ class HomeTopHeader extends StatelessWidget {
         const _CircleButton(
           icon: Icons.notifications_rounded,
           badge: '3',
-        ),
-        const SizedBox(width: 10),
-        _CircleButton(
-          icon: isDarkMode
-              ? Icons.light_mode_rounded
-              : Icons.dark_mode_rounded,
-          onTap: onToggleTheme,
         ),
       ],
     );

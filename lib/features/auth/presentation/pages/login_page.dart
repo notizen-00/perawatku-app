@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/controllers/app_theme_controller.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../controllers/auth_controller.dart';
 
@@ -10,8 +9,6 @@ class LoginPage extends GetView<AuthController> {
 
   @override
   Widget build(BuildContext context) {
-    final themeController = Get.find<AppThemeController>();
-
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -24,20 +21,6 @@ class LoginPage extends GetView<AuthController> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Obx(
-                      () => IconButton(
-                        onPressed: themeController.toggleTheme,
-                        icon: Icon(
-                          themeController.isDarkMode
-                              ? Icons.light_mode_rounded
-                              : Icons.dark_mode_rounded,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   Text(
                     'Masuk Pasien',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(

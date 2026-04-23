@@ -15,9 +15,8 @@ abstract class DoctorRemoteDataSource {
 }
 
 class DoctorRemoteDataSourceImpl implements DoctorRemoteDataSource {
-  DoctorRemoteDataSourceImpl({
-    required ApiClient apiClient,
-  }) : _apiClient = apiClient;
+  DoctorRemoteDataSourceImpl({required ApiClient apiClient})
+    : _apiClient = apiClient;
 
   final ApiClient _apiClient;
 
@@ -41,7 +40,7 @@ class DoctorRemoteDataSourceImpl implements DoctorRemoteDataSource {
         if (limit != null) 'limit': limit,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
-        if (maxDistanceKm != null) 'max_distance_km': maxDistanceKm,
+        // if (maxDistanceKm != null) 'max_distance_km': maxDistanceKm,
       },
     );
 

@@ -1,7 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-
-import '../../../core/controllers/app_theme_controller.dart';
 import 'home_balance_panel.dart';
 import 'home_green_promo_banner.dart';
 import 'home_hero_promo.dart';
@@ -16,19 +13,13 @@ class HomeDashboardContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final themeController = Get.find<AppThemeController>();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 27, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Obx(
-            () => HomeTopHeader(
-              isDarkMode: themeController.isDarkMode,
-              onToggleTheme: themeController.toggleTheme,
-            ),
-          ),
+          const HomeTopHeader(),
           const SizedBox(height: 18),
           HomeHeroPromo(isDark: isDark),
           const SizedBox(height: 16),

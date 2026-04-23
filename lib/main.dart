@@ -3,7 +3,6 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/bindings/app_binding.dart';
-import 'core/controllers/app_theme_controller.dart';
 import 'core/routes/app_pages.dart';
 import 'core/routes/app_routes.dart';
 import 'core/services/storage_service.dart';
@@ -25,22 +24,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeController = Get.isRegistered<AppThemeController>()
-        ? Get.find<AppThemeController>()
-        : Get.put(AppThemeController(), permanent: true);
     final storageService = Get.find<StorageService>();
 
-    return Obx(
-      () => GetMaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Medic Patient App',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: themeController.themeMode.value,
-        initialBinding: AppBinding(),
-        initialRoute: storageService.hasToken ? AppRoutes.home : AppRoutes.login,
-        getPages: AppPages.routes,
-      ),
+    return GetMaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Medic Patient App',
+      theme: AppTheme.lightTheme,
+      themeMode: ThemeMode.light,
+      initialBinding: AppBinding(),
+      initialRoute: storageService.hasToken ? AppRoutes.home : AppRoutes.login,
+      getPages: AppPages.routes,
     );
   }
 }
