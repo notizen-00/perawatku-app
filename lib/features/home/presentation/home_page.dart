@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../activity/presentation/pages/activity_page.dart';
 import '../../account/presentation/account_page.dart';
 import '../../nurse/domain/usecases/get_nurses_use_case.dart';
 import '../controller/home_controller.dart';
@@ -21,11 +22,7 @@ class MedicHomePage extends StatelessWidget {
 
   List<Widget> get _pages => [
         const HomeDashboardContent(),
-        const HomePlaceholderPage(
-          title: 'Aktivitas',
-          icon: Icons.receipt_long_rounded,
-          description: 'Riwayat aktivitas pasien akan ditampilkan di sini.',
-        ),
+        ActivityPage(),
         const HomePlaceholderPage(
           title: 'Medic',
           icon: Icons.local_hospital_rounded,

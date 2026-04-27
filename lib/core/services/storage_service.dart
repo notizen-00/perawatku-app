@@ -23,6 +23,21 @@ class StorageService {
     return jsonDecode(raw) as Map<String, dynamic>;
   }
 
+  int? get userId {
+    final value = userJson?['id'];
+    if (value is int) {
+      return value;
+    }
+
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  String get userName => userJson?['name']?.toString() ?? '';
+
+  String get userEmail => userJson?['email']?.toString() ?? '';
+
+  String get userPhone => userJson?['phone']?.toString() ?? '';
+
   Future<void> saveSession({
     required String token,
     required Map<String, dynamic> userJson,

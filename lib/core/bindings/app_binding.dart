@@ -1,9 +1,22 @@
 import 'package:get/get.dart';
 
+import '../../features/activity/data/datasources/activity_remote_data_source.dart';
+import '../../features/activity/data/repositories/activity_repository_impl.dart';
+import '../../features/activity/domain/repositories/activity_repository.dart';
+import '../../features/activity/domain/usecases/get_consultation_activities_use_case.dart';
+import '../../features/activity/domain/usecases/get_medicine_purchase_activities_use_case.dart';
+import '../../features/activity/domain/usecases/get_other_activities_use_case.dart';
 import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/login_use_case.dart';
+import '../../features/consultation/data/datasources/consultation_remote_data_source.dart';
+import '../../features/consultation/data/repositories/consultation_repository_impl.dart';
+import '../../features/consultation/domain/repositories/consultation_repository.dart';
+import '../../features/consultation/domain/usecases/create_consultation_use_case.dart';
+import '../../features/consultation/domain/usecases/get_consultation_use_case.dart';
+import '../../features/consultation/domain/usecases/pay_consultation_use_case.dart';
+import '../../features/consultation/domain/usecases/send_consultation_message_use_case.dart';
 import '../../features/doctor/data/datasources/doctor_remote_data_source.dart';
 import '../../features/doctor/data/repositories/doctor_repository_impl.dart';
 import '../../features/doctor/domain/repositories/doctor_repository.dart';
@@ -31,6 +44,33 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<AuthRemoteDataSource>(
       () => AuthRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<ActivityRemoteDataSource>(
+      () => ActivityRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<ActivityRepository>(
+      () => ActivityRepositoryImpl(
+        remoteDataSource: Get.find<ActivityRemoteDataSource>(),
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetConsultationActivitiesUseCase>(
+      () => GetConsultationActivitiesUseCase(Get.find<ActivityRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetMedicinePurchaseActivitiesUseCase>(
+      () => GetMedicinePurchaseActivitiesUseCase(Get.find<ActivityRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetOtherActivitiesUseCase>(
+      () => GetOtherActivitiesUseCase(Get.find<ActivityRepository>()),
       fenix: true,
     );
 
@@ -65,6 +105,40 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<GetDoctorsUseCase>(
       () => GetDoctorsUseCase(Get.find<DoctorRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<ConsultationRemoteDataSource>(
+      () => ConsultationRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<ConsultationRepository>(
+      () => ConsultationRepositoryImpl(
+        remoteDataSource: Get.find<ConsultationRemoteDataSource>(),
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<CreateConsultationUseCase>(
+      () => CreateConsultationUseCase(Get.find<ConsultationRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetConsultationUseCase>(
+      () => GetConsultationUseCase(Get.find<ConsultationRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<PayConsultationUseCase>(
+      () => PayConsultationUseCase(Get.find<ConsultationRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<SendConsultationMessageUseCase>(
+      () => SendConsultationMessageUseCase(
+        Get.find<ConsultationRepository>(),
+      ),
       fenix: true,
     );
 

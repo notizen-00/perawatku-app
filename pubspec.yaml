@@ -39,6 +39,7 @@ dependencies:
   geolocator: ^14.0.2
   get: ^4.7.3
   shared_preferences: ^2.5.3
+  midtrans_sdk: ^1.2.0
 
 dev_dependencies:
   flutter_test:

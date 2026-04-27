@@ -175,4 +175,24 @@ class ApiClient {
         );
     }
   }
+
+  Future<Map<String, dynamic>> patch(
+    String path, {
+    Map<String, dynamic>? data,
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: Options(headers: headers),
+      );
+
+      return response.data ?? <String, dynamic>{};
+    } on DioException catch (error) {
+      throw _mapDioException(error);
+    }
+  }
 }

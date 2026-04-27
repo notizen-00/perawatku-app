@@ -7,6 +7,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/doctor_entity.dart';
 import '../controllers/doctor_controller.dart';
+import '../models/doctor_chat_arguments.dart';
 
 enum _DoctorPriceSort { lowest, highest }
 
@@ -322,7 +323,18 @@ class _DoctorCard extends StatelessWidget {
                     height: 36,
                     child: ElevatedButton(
                       onPressed: () {
-                        Get.toNamed(AppRoutes.doctorChat, arguments: doctor);
+                        Get.toNamed(
+                          AppRoutes.doctorConsultation,
+                          arguments: DoctorChatArguments(
+                            doctor: doctor,
+                            doctorName: doctor.name,
+                            specialization: specialization.isEmpty
+                                ? null
+                                : specialization,
+                            partnerUserId: profile?.userId ?? doctor.id,
+                            doctorPhotoUrl: profile?.photoUrl,
+                          ),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFACC15),

@@ -2,7 +2,9 @@ import 'package:get/get.dart';
 
 import '../../features/auth/presentation/bindings/auth_binding.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/doctor/presentation/bindings/doctor_chat_binding.dart';
 import '../../features/doctor/presentation/bindings/doctor_binding.dart';
+import '../../features/doctor/presentation/pages/doctor_consultation_page.dart';
 import '../../features/doctor/presentation/pages/doctor_chat_page.dart';
 import '../../features/doctor/presentation/pages/doctor_page.dart';
 import '../../features/home/presentation/home_page.dart';
@@ -39,8 +41,14 @@ class AppPages {
       binding: DoctorBinding(),
     ),
     GetPage(
+      name: AppRoutes.doctorConsultation,
+      page: () => const DoctorConsultationPage(),
+      binding: DoctorChatBinding(),
+    ),
+    GetPage(
       name: AppRoutes.doctorChat,
       page: () => const DoctorChatPage(),
+      binding: DoctorChatBinding(),
     ),
   ];
 }
