@@ -308,7 +308,7 @@ class _DoctorCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   CurrencyFormatter.formatRupiahFromString(
-                    profile?.consultationFee,
+                    profile!.consultationFee.toString(),
                   ),
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,

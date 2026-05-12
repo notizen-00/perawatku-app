@@ -1,5 +1,6 @@
 import '../../../../core/constants/app_endpoints.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/response_extractors.dart';
 import '../models/doctor_model.dart';
 
 abstract class DoctorRemoteDataSource {
@@ -44,27 +45,11 @@ class DoctorRemoteDataSourceImpl implements DoctorRemoteDataSource {
       },
     );
 
-    return _extractItems(response).map(DoctorModel.fromJson).toList();
-  }
+    final items = extractListOfMaps(
+      response,
+      preferredKeys: const <String>['data', 'doctors'],
+    );
 
-  List<Map<String, dynamic>> _extractItems(Map<String, dynamic> response) {
-    final directData = response['data'];
-    if (directData is List) {
-      return directData.whereType<Map<String, dynamic>>().toList();
-    }
-
-    if (directData is Map<String, dynamic>) {
-      final nestedData = directData['data'];
-      if (nestedData is List) {
-        return nestedData.whereType<Map<String, dynamic>>().toList();
-      }
-    }
-
-    final doctors = response['doctors'];
-    if (doctors is List) {
-      return doctors.whereType<Map<String, dynamic>>().toList();
-    }
-
-    return <Map<String, dynamic>>[];
+    return items.map(DoctorModel.fromJson).toList();
   }
 }

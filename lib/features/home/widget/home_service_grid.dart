@@ -13,7 +13,7 @@ class HomeServiceGrid extends StatelessWidget {
       _ServiceItem('Dokter', Icons.medical_services_rounded),
       _ServiceItem('Perawat', Icons.health_and_safety_rounded),
       _ServiceItem('Caregiver', Icons.volunteer_activism_rounded),
-      _ServiceItem('Apotek', Icons.local_shipping_rounded),
+      _ServiceItem('Obat', Icons.medication_liquid_outlined),
       _ServiceItem('Rawat Luka', Icons.healing_rounded),
       _ServiceItem('Infus', Icons.water_drop_rounded),
       _ServiceItem('Tes Lab', Icons.biotech_rounded),
@@ -90,10 +90,7 @@ class _GridServiceCard extends StatelessWidget {
           Text(
             item.label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ],
       ),

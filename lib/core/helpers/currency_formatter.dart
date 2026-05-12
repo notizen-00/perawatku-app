@@ -12,7 +12,13 @@ class CurrencyFormatter {
 
     final isNegative = amount < 0;
     final absoluteAmount = amount.abs();
-    final fixedValue = absoluteAmount.toStringAsFixed(decimalDigits);
+
+    // Convert to int when decimalDigits is 0 to avoid decimal portion issues
+    final valueToFormat = decimalDigits > 0
+        ? absoluteAmount
+        : absoluteAmount.toInt();
+
+    final fixedValue = valueToFormat.toStringAsFixed(decimalDigits);
     final parts = fixedValue.split('.');
     final whole = parts.first;
     final decimal = parts.length > 1 ? parts.last : '';
@@ -44,9 +50,9 @@ class CurrencyFormatter {
     }
 
     final sanitized = rawAmount
-        .replaceAll(RegExp(r'[^0-9,.-]'), '')
-        .replaceAll('.', '')
-        .replaceAll(',', '.');
+        .replaceAll(RegExp(r'[^0-9,.]'), '')
+        .replaceAll(',', '.')
+        .replaceAll(RegExp(r'\.\d+$'), '');
     final amount = num.tryParse(sanitized);
 
     if (amount == null) {
