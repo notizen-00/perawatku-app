@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 
 class HomeHeroPromo extends StatelessWidget {
-  const HomeHeroPromo({
-    super.key,
-    required this.isDark,
-  });
+  const HomeHeroPromo({super.key, required this.isDark});
 
   final bool isDark;
 
@@ -65,7 +62,7 @@ class HomeHeroPromo extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Jajan bareng pakai',
+                    'Sehat bareng pakai',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                   ),
                   SizedBox(height: 2),
@@ -157,10 +154,7 @@ class _HeroIllustration extends StatelessWidget {
 }
 
 class _MiniCharacter extends StatelessWidget {
-  const _MiniCharacter({
-    required this.shirt,
-    required this.pants,
-  });
+  const _MiniCharacter({required this.shirt, required this.pants});
 
   final Color shirt;
   final Color pants;

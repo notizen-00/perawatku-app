@@ -24,12 +24,12 @@ class LoginPage extends GetView<AuthController> {
                   Text(
                     'Masuk Pasien',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Login ke aplikasi patient menggunakan Laravel Sanctum token.',
+                    'Login Perawatku App',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 28),
@@ -38,7 +38,7 @@ class LoginPage extends GetView<AuthController> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Email',
-                      hintText: 'pasien.jember1@example.com',
+                      hintText: 'Masukkan email',
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -61,37 +61,38 @@ class LoginPage extends GetView<AuthController> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.18),
-                      ),
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Endpoint Login',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        SizedBox(height: 6),
-                        Text('POST /api/patient/login'),
-                        SizedBox(height: 4),
-                        Text('Header dev: ngrok-skip-browser-warning: true'),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
+                  // Container(
+                  //   width: double.infinity,
+                  //   padding: const EdgeInsets.all(16),
+                  //   decoration: BoxDecoration(
+                  //     color: AppColors.primary.withValues(alpha: 0.08),
+                  //     borderRadius: BorderRadius.circular(18),
+                  //     border: Border.all(
+                  //       color: AppColors.primary.withValues(alpha: 0.18),
+                  //     ),
+                  //   ),
+                  //   child: const Column(
+                  //     crossAxisAlignment: CrossAxisAlignment.start,
+                  //     children: [
+                  //       Text(
+                  //         'Endpoint Login',
+                  //         style: TextStyle(fontWeight: FontWeight.w700),
+                  //       ),
+                  //       SizedBox(height: 6),
+                  //       Text('POST /api/patient/login'),
+                  //       SizedBox(height: 4),
+                  //       Text('Header dev: ngrok-skip-browser-warning: true'),
+                  //     ],
+                  //   ),
+                  // ),
+                  // const Spacer(),
                   Obx(
                     () => SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed:
-                            controller.isLoading.value ? null : controller.login,
+                        onPressed: controller.isLoading.value
+                            ? null
+                            : controller.login,
                         child: Text(
                           controller.isLoading.value ? 'Loading...' : 'Masuk',
                         ),
