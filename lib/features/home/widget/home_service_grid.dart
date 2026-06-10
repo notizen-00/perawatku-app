@@ -12,7 +12,7 @@ class HomeServiceGrid extends StatelessWidget {
     const services = [
       _ServiceItem('Dokter', Icons.medical_services_rounded),
       _ServiceItem('Perawat', Icons.health_and_safety_rounded),
-      _ServiceItem('Caregiver', Icons.volunteer_activism_rounded),
+      _ServiceItem('Peta', Icons.map_rounded, route: AppRoutes.map),
       _ServiceItem('Obat', Icons.medication_liquid_outlined),
       _ServiceItem('Rawat Luka', Icons.healing_rounded),
       _ServiceItem('Infus', Icons.water_drop_rounded),
@@ -36,10 +36,11 @@ class HomeServiceGrid extends StatelessWidget {
 }
 
 class _ServiceItem {
-  const _ServiceItem(this.label, this.icon);
+  const _ServiceItem(this.label, this.icon, {this.route});
 
   final String label;
   final IconData icon;
+  final String? route;
 }
 
 class _GridServiceCard extends StatelessWidget {
@@ -50,11 +51,13 @@ class _GridServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final routeName = switch (item.label) {
-      'Dokter' => AppRoutes.doctors,
-      'Perawat' => AppRoutes.nurses,
-      _ => null,
-    };
+    final routeName =
+        item.route ??
+        switch (item.label) {
+          'Dokter' => AppRoutes.doctors,
+          'Perawat' => AppRoutes.nurses,
+          _ => null,
+        };
 
     return InkWell(
       onTap: routeName == null ? null : () => Get.toNamed(routeName),

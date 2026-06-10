@@ -9,6 +9,8 @@ import '../../features/doctor/presentation/pages/doctor_chat_page.dart';
 import '../../features/doctor/presentation/pages/doctor_page.dart';
 import '../../features/home/presentation/home_page.dart';
 import '../../features/home/screen/search_page.dart';
+import '../../features/map/presentation/bindings/map_binding.dart';
+import '../../features/map/presentation/pages/map_page.dart';
 import '../../features/nurse/presentation/bindings/nurse_binding.dart';
 import '../../features/nurse/presentation/pages/nurse_page.dart';
 import 'app_routes.dart';
@@ -22,14 +24,8 @@ class AppPages {
       page: () => const LoginPage(),
       binding: AuthBinding(),
     ),
-    GetPage(
-      name: AppRoutes.home,
-      page: () => MedicHomePage(),
-    ),
-    GetPage(
-      name: AppRoutes.search,
-      page: () => SearchPage(),
-    ),
+    GetPage(name: AppRoutes.home, page: () => MedicHomePage()),
+    GetPage(name: AppRoutes.search, page: () => SearchPage()),
     GetPage(
       name: AppRoutes.nurses,
       page: () => const NursePage(),
@@ -49,6 +45,11 @@ class AppPages {
       name: AppRoutes.doctorChat,
       page: () => const DoctorChatPage(),
       binding: DoctorChatBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.map,
+      page: () => const MapPage(),
+      binding: MapBinding(),
     ),
   ];
 }
