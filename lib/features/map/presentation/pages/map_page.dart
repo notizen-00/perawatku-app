@@ -77,7 +77,7 @@ class MapPage extends StatelessWidget {
                         .map(
                           (location) => createPartnerMarker(
                             location: location,
-                            controller: controller,
+                            onTap: () => _showPartnerInfo(context, location),
                           ),
                         )
                         .toList(),
@@ -390,5 +390,18 @@ class MapPage extends StatelessWidget {
       return '${(distance * 1000).toStringAsFixed(0)} m';
     }
     return '${distance.toStringAsFixed(1)} km';
+  }
+
+  void _showPartnerInfo(BuildContext context, PartnerLocation location) {
+    Get.snackbar(
+      location.name,
+      '${location.partnerType.displayName}\n${location.address ?? "Lokasi tidak tersedia"}',
+      duration: const Duration(seconds: 3),
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: Colors.black87,
+      colorText: Colors.white,
+      margin: const EdgeInsets.all(16),
+      borderRadius: 8,
+    );
   }
 }
