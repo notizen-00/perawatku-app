@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   AppConfig._();
 
-  static const String baseUrl = 'https://obliging-largely-yeti.ngrok-free.app';
+  static const String baseUrl = 'https://backend.perawatku.tech';
   static const String midtransClientKey = String.fromEnvironment(
     'MIDTRANS_CLIENT_KEY',
     defaultValue: 'SB-Mid-client-Wg5leIiJk3ql0n75',

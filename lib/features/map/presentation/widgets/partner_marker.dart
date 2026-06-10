@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../domain/entities/partner_location.dart';
@@ -17,11 +16,7 @@ Marker createPartnerMarker({
     point: LatLng(location.latitude, location.longitude),
     child: GestureDetector(
       onTap: () {
-        controller.moveToLocation(
-          LatLng(location.latitude, location.longitude),
-          zoom: 16,
-        );
-        _showPartnerInfo(location);
+        controller.startNavigation(location);
       },
       child: _buildMarkerWidget(location),
     ),
@@ -80,19 +75,5 @@ Widget _buildMarkerWidget(PartnerLocation location) {
           ),
         ),
     ],
-  );
-}
-
-void _showPartnerInfo(PartnerLocation location) {
-  // Simple snackbar for now - can be enhanced with a custom dialog
-  Get.snackbar(
-    location.name,
-    '${location.partnerType.displayName}\n${location.address ?? "Lokasi tidak tersedia"}',
-    duration: const Duration(seconds: 3),
-    snackPosition: SnackPosition.BOTTOM,
-    backgroundColor: Colors.black87,
-    colorText: Colors.white,
-    margin: const EdgeInsets.all(16),
-    borderRadius: 8,
   );
 }

@@ -1,3 +1,4 @@
+import '../entities/navigation_route.dart';
 import '../entities/partner_location.dart';
 import '../repositories/map_repository.dart';
 
@@ -49,6 +50,26 @@ class GetNearbyPartnersUseCase {
       userLatitude: userLatitude,
       userLongitude: userLongitude,
       radiusInKm: radiusInKm,
+    );
+  }
+}
+
+class GetNavigationRouteUseCase {
+  final MapRepository repository;
+
+  GetNavigationRouteUseCase(this.repository);
+
+  Future<NavigationRoute> execute({
+    required double originLatitude,
+    required double originLongitude,
+    required double destinationLatitude,
+    required double destinationLongitude,
+  }) {
+    return repository.getNavigationRoute(
+      originLatitude: originLatitude,
+      originLongitude: originLongitude,
+      destinationLatitude: destinationLatitude,
+      destinationLongitude: destinationLongitude,
     );
   }
 }

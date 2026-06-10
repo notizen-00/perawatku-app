@@ -30,10 +30,17 @@ class MapBinding extends Bindings {
       () => GetPartnerLocationsUseCase(Get.find<MapRepository>()),
       fenix: true,
     );
+    Get.lazyPut<GetNavigationRouteUseCase>(
+      () => GetNavigationRouteUseCase(Get.find<MapRepository>()),
+      fenix: true,
+    );
 
     // Controller
     Get.put(
-      MapController(Get.find<GetPartnerLocationsUseCase>()),
+      MapController(
+        Get.find<GetPartnerLocationsUseCase>(),
+        Get.find<GetNavigationRouteUseCase>(),
+      ),
       permanent: false,
     );
   }

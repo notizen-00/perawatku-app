@@ -1,3 +1,4 @@
+import '../entities/navigation_route.dart';
 import '../entities/partner_location.dart';
 
 /// Repository interface untuk operasi peta dan lokasi mitra
@@ -16,5 +17,12 @@ abstract class MapRepository {
     required double userLatitude,
     required double userLongitude,
     double radiusInKm = 5.0,
+  });
+
+  Future<NavigationRoute> getNavigationRoute({
+    required double originLatitude,
+    required double originLongitude,
+    required double destinationLatitude,
+    required double destinationLongitude,
   });
 }

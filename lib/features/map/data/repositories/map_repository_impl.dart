@@ -1,3 +1,4 @@
+import '../../domain/entities/navigation_route.dart';
 import '../../domain/entities/partner_location.dart';
 import '../../domain/repositories/map_repository.dart';
 import '../datasources/map_remote_data_source.dart';
@@ -36,6 +37,21 @@ class MapRepositoryImpl implements MapRepository {
       userLatitude: userLatitude,
       userLongitude: userLongitude,
       radiusInKm: radiusInKm,
+    );
+  }
+
+  @override
+  Future<NavigationRoute> getNavigationRoute({
+    required double originLatitude,
+    required double originLongitude,
+    required double destinationLatitude,
+    required double destinationLongitude,
+  }) {
+    return remoteDataSource.getNavigationRoute(
+      originLatitude: originLatitude,
+      originLongitude: originLongitude,
+      destinationLatitude: destinationLatitude,
+      destinationLongitude: destinationLongitude,
     );
   }
 }

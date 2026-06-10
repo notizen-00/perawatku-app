@@ -68,9 +68,9 @@ class PartnerLocationModel extends PartnerLocation {
       partnerType: PartnerType.doctor,
       name: doctorJson['name'] ?? '',
       photoUrl: doctorJson['photo_url'],
-      latitude: (doctorJson['latitude'] ?? -6.2088)
-          .toDouble(), // Default Jakarta
-      longitude: (doctorJson['longitude'] ?? 106.8456).toDouble(),
+      latitude: (doctorJson['latitude'] ?? -8.1724)
+          .toDouble(), // Default Jember
+      longitude: (doctorJson['longitude'] ?? 113.7007).toDouble(),
       address: doctorJson['address'],
       isOnline: doctorJson['is_online'] ?? true,
       lastUpdate: DateTime.now(),
@@ -85,8 +85,8 @@ class PartnerLocationModel extends PartnerLocation {
       partnerType: PartnerType.nurse,
       name: nurseJson['name'] ?? '',
       photoUrl: nurseJson['photo_url'],
-      latitude: (nurseJson['latitude'] ?? -6.2088).toDouble(),
-      longitude: (nurseJson['longitude'] ?? 106.8456).toDouble(),
+      latitude: (nurseJson['latitude'] ?? -8.1724).toDouble(),
+      longitude: (nurseJson['longitude'] ?? 113.7007).toDouble(),
       address: nurseJson['address'],
       isOnline: nurseJson['is_online'] ?? true,
       lastUpdate: DateTime.now(),
