@@ -28,6 +28,7 @@ import '../../features/nurse/domain/repositories/nurse_repository.dart';
 import '../../features/nurse/domain/usecases/get_nurses_use_case.dart';
 import '../controllers/app_theme_controller.dart';
 import '../network/api_client.dart';
+import '../services/reverb_websocket_service.dart';
 import '../services/storage_service.dart';
 
 class AppBinding extends Bindings {
@@ -39,6 +40,11 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<ApiClient>(
       () => ApiClient(storageService: Get.find<StorageService>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<ReverbWebSocketService>(
+      () => ReverbWebSocketService(apiClient: Get.find<ApiClient>()),
       fenix: true,
     );
 
@@ -65,7 +71,8 @@ class AppBinding extends Bindings {
     );
 
     Get.lazyPut<GetMedicinePurchaseActivitiesUseCase>(
-      () => GetMedicinePurchaseActivitiesUseCase(Get.find<ActivityRepository>()),
+      () =>
+          GetMedicinePurchaseActivitiesUseCase(Get.find<ActivityRepository>()),
       fenix: true,
     );
 
@@ -136,9 +143,7 @@ class AppBinding extends Bindings {
     );
 
     Get.lazyPut<SendConsultationMessageUseCase>(
-      () => SendConsultationMessageUseCase(
-        Get.find<ConsultationRepository>(),
-      ),
+      () => SendConsultationMessageUseCase(Get.find<ConsultationRepository>()),
       fenix: true,
     );
 

@@ -5,4 +5,5 @@ class AppEndpoints {
   static const String patientNurses = '/api/patient/nurses';
   static const String patientDoctors = '/api/patient/doctors';
   static const String patientConsultations = '/api/patient/consultations';
+  static const String broadcastingAuth = '/api/broadcasting/auth';
 }

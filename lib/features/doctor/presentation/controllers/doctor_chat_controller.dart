@@ -7,7 +7,9 @@ import '../../../../core/helpers/app_snackbar.dart';
 import '../../../../core/helpers/currency_formatter.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/midtrans_service.dart';
+import '../../../../core/services/reverb_websocket_service.dart';
 import '../../../../core/services/storage_service.dart';
+import '../../../consultation/data/models/consultation_message_model.dart';
 import '../../../activity/presentation/controllers/activity_controller.dart';
 import '../../../consultation/domain/entities/consultation_entity.dart';
 import '../../../consultation/domain/entities/consultation_message_entity.dart';
@@ -27,12 +29,14 @@ class DoctorChatController extends GetxController {
     required SendConsultationMessageUseCase sendConsultationMessageUseCase,
     required MidtransService midtransService,
     required StorageService storageService,
+    required ReverbWebSocketService reverbWebSocketService,
   }) : _createConsultationUseCase = createConsultationUseCase,
        _getConsultationUseCase = getConsultationUseCase,
        _payConsultationUseCase = payConsultationUseCase,
        _sendConsultationMessageUseCase = sendConsultationMessageUseCase,
        _midtransService = midtransService,
-       _storageService = storageService;
+       _storageService = storageService,
+       _reverbWebSocketService = reverbWebSocketService;
 
   final CreateConsultationUseCase _createConsultationUseCase;
   final GetConsultationUseCase _getConsultationUseCase;
@@ -40,6 +44,7 @@ class DoctorChatController extends GetxController {
   final SendConsultationMessageUseCase _sendConsultationMessageUseCase;
   final MidtransService _midtransService;
   final StorageService _storageService;
+  final ReverbWebSocketService _reverbWebSocketService;
 
   final TextEditingController messageController = TextEditingController();
   final TextEditingController consultationNoteController =
@@ -58,6 +63,7 @@ class DoctorChatController extends GetxController {
   DoctorChatArguments? _arguments;
   bool _isSyncingPayment = false;
   bool _hasSubmittedConsultationNote = false;
+  String? _subscribedConsultationChannel;
 
   int? get currentUserId => _storageService.userId;
 
@@ -83,8 +89,8 @@ class DoctorChatController extends GetxController {
 
   String get consultationTitle =>
       consultation.value?.consultationCode?.trim().isNotEmpty == true
-          ? consultation.value!.consultationCode!
-          : 'Konsultasi Chat';
+      ? consultation.value!.consultationCode!
+      : 'Konsultasi Chat';
 
   String get specializationLabel =>
       doctor.value?.profile?.specialization ??
@@ -94,8 +100,10 @@ class DoctorChatController extends GetxController {
   String get consultationStatusLabel =>
       _formatStatusLabel(consultation.value?.status, fallback: 'Menunggu');
 
-  String get paymentStatusLabel =>
-      _formatStatusLabel(consultation.value?.paymentStatus, fallback: 'Belum dibayar');
+  String get paymentStatusLabel => _formatStatusLabel(
+    consultation.value?.paymentStatus,
+    fallback: 'Belum dibayar',
+  );
 
   bool get isPaymentPending {
     final paymentStatus = consultation.value?.paymentStatus.toLowerCase() ?? '';
@@ -109,14 +117,13 @@ class DoctorChatController extends GetxController {
 
   String get paymentReferenceLabel =>
       consultation.value?.orderId?.trim().isNotEmpty == true
-          ? consultation.value!.orderId!
-          : 'Belum tersedia';
+      ? consultation.value!.orderId!
+      : 'Belum tersedia';
 
-  String get paymentMethodLabel =>
-      _formatStatusLabel(
-        consultation.value?.paymentMethod,
-        fallback: 'Belum tersedia',
-      );
+  String get paymentMethodLabel => _formatStatusLabel(
+    consultation.value?.paymentMethod,
+    fallback: 'Belum tersedia',
+  );
 
   String get paymentNotesLabel {
     final notes = consultation.value?.paymentNotes?.trim();
@@ -246,9 +253,7 @@ class DoctorChatController extends GetxController {
     try {
       final payment = await _payConsultationUseCase(currentConsultation.id);
 
-      await _midtransService.startPayment(
-        snapToken: payment.snapToken,
-      );
+      await _midtransService.startPayment(snapToken: payment.snapToken);
 
       if (!(consultation.value?.isPaid ?? false)) {
         await _syncConsultationAfterPayment(showFailureMessage: false);
@@ -296,7 +301,7 @@ class DoctorChatController extends GetxController {
         message: message,
       );
 
-      messages.add(sentMessage);
+      _appendMessageIfNew(sentMessage);
       messageController.clear();
     } on AppException catch (error) {
       AppSnackbar.error('Pesan gagal', error.message);
@@ -335,9 +340,7 @@ class DoctorChatController extends GetxController {
       if (Get.currentRoute != AppRoutes.doctorChat) {
         await Get.toNamed(
           AppRoutes.doctorChat,
-          arguments: _buildChatArguments(
-            consultationId: latestConsultation.id,
-          ),
+          arguments: _buildChatArguments(consultationId: latestConsultation.id),
         );
       }
     } on AppException catch (error) {
@@ -364,6 +367,71 @@ class DoctorChatController extends GetxController {
   void _applyConsultation(ConsultationEntity value) {
     consultation.value = value;
     messages.assignAll(value.messages);
+    _subscribeToConsultationChannelIfNeeded(value);
+  }
+
+  Future<void> _subscribeToConsultationChannelIfNeeded(
+    ConsultationEntity value,
+  ) async {
+    if (!value.isPaid || value.id == 0) {
+      return;
+    }
+
+    final channelName = 'private-consultation.${value.id}';
+    if (_subscribedConsultationChannel == channelName) {
+      return;
+    }
+
+    final previousChannel = _subscribedConsultationChannel;
+    _subscribedConsultationChannel = channelName;
+
+    if (previousChannel != null) {
+      await _reverbWebSocketService.unsubscribe(
+        channelName: previousChannel,
+        onEvent: _handleConsultationSocketEvent,
+      );
+    }
+
+    try {
+      await _reverbWebSocketService.subscribePrivateChannel(
+        channelName: channelName,
+        onEvent: _handleConsultationSocketEvent,
+      );
+    } catch (_) {
+      _subscribedConsultationChannel = null;
+    }
+  }
+
+  void _handleConsultationSocketEvent(
+    Map<String, dynamic> payload,
+    String eventName,
+  ) {
+    if (eventName != 'chat.message.created') {
+      return;
+    }
+
+    final message = ConsultationMessageModel.fromJson(payload);
+    if (message.consultationId != consultation.value?.id) {
+      return;
+    }
+
+    _appendMessageIfNew(message);
+  }
+
+  void _appendMessageIfNew(ConsultationMessageEntity message) {
+    final alreadyExists = messages.any((item) {
+      if (message.id != 0 && item.id == message.id) {
+        return true;
+      }
+
+      return item.senderId == message.senderId &&
+          item.message == message.message &&
+          item.createdAt == message.createdAt;
+    });
+
+    if (!alreadyExists) {
+      messages.add(message);
+    }
   }
 
   Future<void> _handleTransactionFinished(TransactionResult result) async {
@@ -500,7 +568,7 @@ class DoctorChatController extends GetxController {
         message: note,
       );
 
-      messages.add(sentMessage);
+      _appendMessageIfNew(sentMessage);
       _hasSubmittedConsultationNote = true;
       consultationNoteController.clear();
     } on AppException {
@@ -510,9 +578,7 @@ class DoctorChatController extends GetxController {
     }
   }
 
-  DoctorChatArguments _buildChatArguments({
-    required int consultationId,
-  }) {
+  DoctorChatArguments _buildChatArguments({required int consultationId}) {
     return DoctorChatArguments(
       doctor: doctor.value,
       consultationId: consultationId,
@@ -578,6 +644,13 @@ class DoctorChatController extends GetxController {
 
   @override
   void onClose() {
+    final channelName = _subscribedConsultationChannel;
+    if (channelName != null) {
+      _reverbWebSocketService.unsubscribe(
+        channelName: channelName,
+        onEvent: _handleConsultationSocketEvent,
+      );
+    }
     messageController.dispose();
     consultationNoteController.dispose();
     _midtransService.removeTransactionFinishedCallback();
