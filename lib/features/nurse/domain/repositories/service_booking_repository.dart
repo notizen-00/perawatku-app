@@ -17,4 +17,6 @@ abstract class ServiceBookingRepository {
   });
 
   Future<ServiceBookingEntity> getBooking(int bookingId);
+
+  Future<ServiceBookingEntity> payBooking(int bookingId, {String? notes});
 }

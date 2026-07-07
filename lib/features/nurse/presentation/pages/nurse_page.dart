@@ -371,10 +371,7 @@ class _BookingStatusCard extends GetView<NurseController> {
               const SizedBox(width: 10),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed:
-                      (isPaid ||
-                          booking.snapToken == null ||
-                          controller.isOpeningPayment.value)
+                  onPressed: (isPaid || controller.isOpeningPayment.value)
                       ? null
                       : controller.openLatestBookingPayment,
                   icon: controller.isOpeningPayment.value

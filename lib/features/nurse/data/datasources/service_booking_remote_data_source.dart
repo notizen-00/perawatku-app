@@ -20,6 +20,8 @@ abstract class ServiceBookingRemoteDataSource {
   });
 
   Future<ServiceBookingModel> getBooking(int bookingId);
+
+  Future<ServiceBookingModel> payBooking(int bookingId, {String? notes});
 }
 
 class ServiceBookingRemoteDataSourceImpl
@@ -80,6 +82,20 @@ class ServiceBookingRemoteDataSourceImpl
   Future<ServiceBookingModel> getBooking(int bookingId) async {
     final response = await _apiClient.get(
       '${AppEndpoints.patientServiceBookings}/$bookingId',
+    );
+
+    return ServiceBookingModel.fromJson(response);
+  }
+
+  @override
+  Future<ServiceBookingModel> payBooking(int bookingId, {String? notes}) async {
+    final trimmedNotes = notes?.trim();
+    final response = await _apiClient.patch(
+      '${AppEndpoints.patientServiceBookings}/$bookingId/pay',
+      data: <String, dynamic>{
+        if (trimmedNotes != null && trimmedNotes.isNotEmpty)
+          'notes': trimmedNotes,
+      },
     );
 
     return ServiceBookingModel.fromJson(response);

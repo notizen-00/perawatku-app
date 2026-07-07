@@ -13,6 +13,7 @@ import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
 import '../../domain/usecases/get_nurses_use_case.dart';
+import '../../domain/usecases/pay_service_booking_use_case.dart';
 
 class NurseController extends GetxController {
   NurseController({
@@ -20,17 +21,20 @@ class NurseController extends GetxController {
     required GetServiceBookingServicesUseCase getServicesUseCase,
     required CreateServiceBookingUseCase createBookingUseCase,
     required GetServiceBookingUseCase getBookingUseCase,
+    required PayServiceBookingUseCase payBookingUseCase,
     required MidtransService midtransService,
   }) : _getNursesUseCase = getNursesUseCase,
        _getServicesUseCase = getServicesUseCase,
        _createBookingUseCase = createBookingUseCase,
        _getBookingUseCase = getBookingUseCase,
+       _payBookingUseCase = payBookingUseCase,
        _midtransService = midtransService;
 
   final GetNursesUseCase _getNursesUseCase;
   final GetServiceBookingServicesUseCase _getServicesUseCase;
   final CreateServiceBookingUseCase _createBookingUseCase;
   final GetServiceBookingUseCase _getBookingUseCase;
+  final PayServiceBookingUseCase _payBookingUseCase;
   final MidtransService _midtransService;
 
   final RxList<NurseEntity> nurses = <NurseEntity>[].obs;
@@ -194,14 +198,7 @@ class NurseController extends GetxController {
         return;
       }
 
-      if (booking.snapToken != null) {
-        await openLatestBookingPayment();
-      } else {
-        AppSnackbar.info(
-          'Menunggu pembayaran',
-          'Backend belum mengirim token pembayaran. Refresh status atau buka aktivitas untuk cek pembayaran.',
-        );
-      }
+      await openLatestBookingPayment();
     } on AppException catch (error) {
       AppSnackbar.error('Booking gagal', error.message);
     } catch (_) {
@@ -215,8 +212,7 @@ class NurseController extends GetxController {
   }
 
   Future<void> openLatestBookingPayment() async {
-    final booking = latestBooking.value;
-    final snapToken = booking?.snapToken;
+    var booking = latestBooking.value;
 
     if (booking == null) {
       AppSnackbar.info('Booking belum ada', 'Buat booking terlebih dahulu.');
@@ -227,14 +223,6 @@ class NurseController extends GetxController {
       AppSnackbar.success(
         'Pembayaran sudah selesai',
         'Pesanan sudah bisa diproses oleh mitra.',
-      );
-      return;
-    }
-
-    if (snapToken == null || snapToken.isEmpty) {
-      AppSnackbar.info(
-        'Token pembayaran belum tersedia',
-        'Backend belum mengirim snap token untuk booking ini.',
       );
       return;
     }
@@ -258,8 +246,27 @@ class NurseController extends GetxController {
     isOpeningPayment.value = true;
 
     try {
+      if (booking.snapToken == null || booking.snapToken!.isEmpty) {
+        booking = await _payBookingUseCase(
+          booking.id,
+          notes: notesController.text,
+        );
+        latestBooking.value = booking;
+      }
+
+      final snapToken = booking.snapToken;
+      if (snapToken == null || snapToken.isEmpty) {
+        AppSnackbar.info(
+          'Token pembayaran belum tersedia',
+          'Backend belum mengirim snap token untuk booking ini.',
+        );
+        return;
+      }
+
       await _midtransService.startPayment(snapToken: snapToken);
       await refreshLatestBooking(showSuccessWhenPaid: false);
+    } on AppException catch (error) {
+      AppSnackbar.error('Pembayaran gagal', error.message);
     } catch (_) {
       AppSnackbar.error(
         'Pembayaran gagal',

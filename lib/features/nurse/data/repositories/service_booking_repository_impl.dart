@@ -44,4 +44,9 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
   Future<ServiceBookingEntity> getBooking(int bookingId) {
     return _remoteDataSource.getBooking(bookingId);
   }
+
+  @override
+  Future<ServiceBookingEntity> payBooking(int bookingId, {String? notes}) {
+    return _remoteDataSource.payBooking(bookingId, notes: notes);
+  }
 }

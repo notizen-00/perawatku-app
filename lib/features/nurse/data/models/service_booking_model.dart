@@ -16,26 +16,34 @@ class ServiceBookingModel extends ServiceBookingEntity {
   });
 
   factory ServiceBookingModel.fromJson(Map<String, dynamic> json) {
-    final booking = json['data'] is Map<String, dynamic>
-        ? Map<String, dynamic>.from(json['data'] as Map)
-        : json['booking'] is Map<String, dynamic>
-        ? Map<String, dynamic>.from(json['booking'] as Map)
-        : Map<String, dynamic>.from(json);
-    final payment = booking['payment'] is Map<String, dynamic>
-        ? booking['payment'] as Map<String, dynamic>
-        : json['payment'] is Map<String, dynamic>
-        ? json['payment'] as Map<String, dynamic>
-        : <String, dynamic>{};
-    final transaction = booking['transaction'] is Map<String, dynamic>
-        ? booking['transaction'] as Map<String, dynamic>
-        : json['transaction'] is Map<String, dynamic>
-        ? json['transaction'] as Map<String, dynamic>
-        : <String, dynamic>{};
-    final matchmakingJson = json['matchmaking'] is Map<String, dynamic>
-        ? json['matchmaking'] as Map<String, dynamic>
-        : booking['matchmaking'] is Map<String, dynamic>
-        ? booking['matchmaking'] as Map<String, dynamic>
-        : null;
+    final root = Map<String, dynamic>.from(json);
+    final data = _readMap(root['data']);
+    final booking =
+        _readMap(data?['service_booking']) ??
+        _readMap(root['service_booking']) ??
+        _readMap(data?['booking']) ??
+        _readMap(root['booking']) ??
+        _readMap(data?['serviceBooking']) ??
+        (data != null && _looksLikeBooking(data) ? data : root);
+    final payment =
+        _readMap(booking['payment']) ??
+        _readMap(data?['payment']) ??
+        _readMap(root['payment']) ??
+        <String, dynamic>{};
+    final transaction =
+        _readMap(booking['transaction']) ??
+        _readMap(data?['transaction']) ??
+        _readMap(root['transaction']) ??
+        <String, dynamic>{};
+    final midtrans =
+        _readMap(data?['midtrans']) ??
+        _readMap(root['midtrans']) ??
+        _readMap(payment['midtrans']) ??
+        <String, dynamic>{};
+    final matchmakingJson =
+        _readMap(root['matchmaking']) ??
+        _readMap(data?['matchmaking']) ??
+        _readMap(booking['matchmaking']);
 
     return ServiceBookingModel(
       id: _readInt(booking['id']) ?? 0,
@@ -67,19 +75,36 @@ class ServiceBookingModel extends ServiceBookingEntity {
             booking['payment_token'] ??
             payment['snap_token'] ??
             payment['payment_token'] ??
-            transaction['snap_token'],
+            transaction['snap_token'] ??
+            midtrans['snap_token'] ??
+            midtrans['token'],
       ),
       paymentReference: _readString(
         booking['payment_reference'] ??
             booking['payment_code'] ??
             payment['order_id'] ??
             payment['payment_code'] ??
-            transaction['order_id'],
+            transaction['order_id'] ??
+            midtrans['order_id'],
       ),
       matchmaking: matchmakingJson == null
           ? null
           : ServiceBookingMatchmakingModel.fromJson(matchmakingJson),
     );
+  }
+
+  static Map<String, dynamic>? _readMap(dynamic value) {
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+
+    return null;
+  }
+
+  static bool _looksLikeBooking(Map<String, dynamic> json) {
+    return json.containsKey('id') ||
+        json.containsKey('booking_code') ||
+        json.containsKey('service_id');
   }
 
   static int? _readInt(dynamic value) {

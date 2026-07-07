@@ -32,6 +32,7 @@ import '../../features/nurse/domain/usecases/create_service_booking_use_case.dar
 import '../../features/nurse/domain/usecases/get_service_booking_services_use_case.dart';
 import '../../features/nurse/domain/usecases/get_service_booking_use_case.dart';
 import '../../features/nurse/domain/usecases/get_nurses_use_case.dart';
+import '../../features/nurse/domain/usecases/pay_service_booking_use_case.dart';
 import '../../features/notification/data/datasources/notification_remote_data_source.dart';
 import '../../features/notification/data/repositories/notification_repository_impl.dart';
 import '../../features/notification/domain/repositories/notification_repository.dart';
@@ -156,6 +157,11 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<GetServiceBookingUseCase>(
       () => GetServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<PayServiceBookingUseCase>(
+      () => PayServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
       fenix: true,
     );
 
