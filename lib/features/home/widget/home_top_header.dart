@@ -3,9 +3,13 @@ import 'package:get/get.dart';
 
 import '../../../core/routes/app_routes.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../notification/presentation/controllers/notification_controller.dart';
 
 class HomeTopHeader extends StatelessWidget {
-  const HomeTopHeader({super.key});
+  HomeTopHeader({super.key});
+
+  final NotificationController notificationController =
+      Get.find<NotificationController>();
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +28,9 @@ class HomeTopHeader extends StatelessWidget {
                 color: searchFill,
                 borderRadius: BorderRadius.circular(30),
                 border: Border.all(
-                  color: isDark ? AppColors.darkBorder : const Color(0xFFEAE3D8),
+                  color: isDark
+                      ? AppColors.darkBorder
+                      : const Color(0xFFEAE3D8),
                 ),
               ),
               child: Row(
@@ -52,9 +58,16 @@ class HomeTopHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        const _CircleButton(
-          icon: Icons.notifications_rounded,
-          badge: '3',
+        Obx(
+          () => _CircleButton(
+            icon: Icons.notifications_rounded,
+            badge: notificationController.unreadCount.value == 0
+                ? null
+                : notificationController.unreadCount.value > 99
+                ? '99+'
+                : notificationController.unreadCount.value.toString(),
+            onTap: () => Get.toNamed(AppRoutes.notifications),
+          ),
         ),
       ],
     );
@@ -62,11 +75,7 @@ class HomeTopHeader extends StatelessWidget {
 }
 
 class _CircleButton extends StatelessWidget {
-  const _CircleButton({
-    required this.icon,
-    this.onTap,
-    this.badge,
-  });
+  const _CircleButton({required this.icon, this.onTap, this.badge});
 
   final IconData icon;
   final VoidCallback? onTap;

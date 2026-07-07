@@ -9,10 +9,12 @@ class SendConsultationMessageUseCase {
   Future<ConsultationMessageEntity> call({
     required int consultationId,
     required String message,
+    String messageType = 'text',
   }) {
     return _repository.addMessage(
       consultationId: consultationId,
       message: message,
+      messageType: messageType,
     );
   }
 }

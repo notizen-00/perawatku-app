@@ -26,58 +26,18 @@ class ActivityRemoteDataSourceImpl implements ActivityRemoteDataSource {
 
   @override
   Future<List<ActivityRecordModel>> getMedicinePurchaseActivities() async {
-    const mockItems = [
-      {
-        'id': 'RX-1001',
-        'category': 'medicine',
-        'title': 'Pembelian Obat Flu & Batuk',
-        'subtitle': 'Apotek Mitra Sehat',
-        'status': 'delivered',
-        'date_time': '2026-04-24T10:30:00Z',
-        'amount_label': 'Rp128.000',
-        'reference': 'ORD-RX-1001',
-      },
-      {
-        'id': 'RX-0998',
-        'category': 'medicine',
-        'title': 'Vitamin & Suplemen Harian',
-        'subtitle': 'Apotek Medic Care',
-        'status': 'processing',
-        'date_time': '2026-04-20T08:15:00Z',
-        'amount_label': 'Rp76.500',
-        'reference': 'ORD-RX-0998',
-      },
-    ];
+    final response = await _apiClient.get(AppEndpoints.patientOrders);
+    final items = _extractItems(response);
 
-    return mockItems.map(ActivityRecordModel.fromMap).toList();
+    return items.map(ActivityRecordModel.fromOrderJson).toList();
   }
 
   @override
   Future<List<ActivityRecordModel>> getOtherActivities() async {
-    const mockItems = [
-      {
-        'id': 'LAB-3001',
-        'category': 'other',
-        'title': 'Reservasi Cek Lab',
-        'subtitle': 'Paket darah lengkap',
-        'status': 'scheduled',
-        'date_time': '2026-04-29T07:00:00Z',
-        'amount_label': 'Rp210.000',
-        'reference': 'LAB-3001',
-      },
-      {
-        'id': 'HOME-7004',
-        'category': 'other',
-        'title': 'Kunjungan Perawat ke Rumah',
-        'subtitle': 'Perawatan luka pasca tindakan',
-        'status': 'completed',
-        'date_time': '2026-04-18T14:45:00Z',
-        'amount_label': 'Rp185.000',
-        'reference': 'HOME-7004',
-      },
-    ];
+    final response = await _apiClient.get(AppEndpoints.patientServiceBookings);
+    final items = _extractItems(response);
 
-    return mockItems.map(ActivityRecordModel.fromMap).toList();
+    return items.map(ActivityRecordModel.fromServiceBookingJson).toList();
   }
 
   List<Map<String, dynamic>> _extractItems(Map<String, dynamic> response) {
@@ -96,6 +56,16 @@ class ActivityRemoteDataSourceImpl implements ActivityRemoteDataSource {
     final consultations = response['consultations'];
     if (consultations is List) {
       return consultations.whereType<Map<String, dynamic>>().toList();
+    }
+
+    final orders = response['orders'];
+    if (orders is List) {
+      return orders.whereType<Map<String, dynamic>>().toList();
+    }
+
+    final serviceBookings = response['service_bookings'];
+    if (serviceBookings is List) {
+      return serviceBookings.whereType<Map<String, dynamic>>().toList();
     }
 
     return <Map<String, dynamic>>[];

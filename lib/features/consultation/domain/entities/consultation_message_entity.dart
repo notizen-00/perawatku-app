@@ -5,6 +5,7 @@ class ConsultationMessageEntity {
     required this.senderId,
     required this.senderName,
     required this.senderRole,
+    required this.messageType,
     required this.message,
     required this.createdAt,
   });
@@ -14,6 +15,7 @@ class ConsultationMessageEntity {
   final int? senderId;
   final String senderName;
   final String senderRole;
+  final String messageType;
   final String message;
   final String createdAt;
 }

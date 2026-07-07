@@ -19,7 +19,7 @@ class HomeDashboardContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeTopHeader(),
+          HomeTopHeader(),
           const SizedBox(height: 18),
           HomeHeroPromo(isDark: isDark),
           const SizedBox(height: 16),

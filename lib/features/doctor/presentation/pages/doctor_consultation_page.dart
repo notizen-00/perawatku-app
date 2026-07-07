@@ -48,24 +48,36 @@ class DoctorConsultationPage extends GetView<DoctorChatController> {
             Obx(
               () => ElevatedButton.icon(
                 onPressed:
-                    controller.isPreparingChat.value
-                        ? null
-                        : controller.openChatPage,
+                    controller.isPreparingChat.value ||
+                        controller.isPaying.value
+                    ? null
+                    : consultation?.isPaid == true
+                    ? controller.openChatPage
+                    : controller.payConsultation,
                 icon:
-                    controller.isPreparingChat.value
-                        ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                        : const Icon(Icons.chat_bubble_rounded),
+                    controller.isPreparingChat.value ||
+                        controller.isPaying.value
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(
+                        consultation?.isPaid == true
+                            ? Icons.chat_bubble_rounded
+                            : Icons.account_balance_wallet_rounded,
+                      ),
                 label: Text(
                   consultation?.isPaid == true
                       ? 'Buka chat konsultasi'
-                      : 'Cek pembayaran dan buka chat',
+                      : consultation == null
+                      ? 'Buat dan bayar konsultasi'
+                      : controller.isPaymentPending
+                      ? 'Bayar ulang konsultasi'
+                      : 'Bayar konsultasi',
                 ),
               ),
             ),
@@ -79,40 +91,39 @@ class DoctorConsultationPage extends GetView<DoctorChatController> {
           child: Obx(() {
             final consultation = controller.consultation.value;
             final isPaid = consultation?.isPaid ?? false;
-            final isReady = consultation != null && !controller.isInitializing.value;
+            final isReady = !controller.isInitializing.value;
 
             if (isPaid) {
               return FilledButton.icon(
-                onPressed:
-                    controller.isPreparingChat.value
-                        ? null
-                        : controller.openChatPage,
+                onPressed: controller.isPreparingChat.value
+                    ? null
+                    : controller.openChatPage,
                 icon: const Icon(Icons.forum_rounded),
                 label: const Text('Lanjut ke chat'),
               );
             }
 
             return ElevatedButton.icon(
-              onPressed:
-                  !isReady || controller.isPaying.value
-                      ? null
-                      : controller.payConsultation,
-              icon:
-                  controller.isPaying.value
-                      ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                      : const Icon(Icons.account_balance_wallet_rounded),
+              onPressed: !isReady || controller.isPaying.value
+                  ? null
+                  : controller.payConsultation,
+              icon: controller.isPaying.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.account_balance_wallet_rounded),
               label: Text(
                 !isReady
                     ? 'Menyiapkan konsultasi...'
                     : controller.isPaying.value
                     ? 'Membuka Midtrans...'
+                    : consultation == null
+                    ? 'Buat dan bayar konsultasi'
                     : controller.isPaymentPending
                     ? 'Bayar ulang konsultasi'
                     : 'Bayar konsultasi',
@@ -149,22 +160,21 @@ class _DoctorSummaryCard extends StatelessWidget {
             child: SizedBox(
               width: 72,
               height: 72,
-              child:
-                  photoUrl == null
-                      ? Container(
+              child: photoUrl == null
+                  ? Container(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      alignment: Alignment.center,
+                      child: const Icon(Icons.person_rounded, size: 34),
+                    )
+                  : Image.network(
+                      photoUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
                         color: AppColors.primary.withValues(alpha: 0.12),
                         alignment: Alignment.center,
                         child: const Icon(Icons.person_rounded, size: 34),
-                      )
-                      : Image.network(
-                        photoUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.person_rounded, size: 34),
-                        ),
                       ),
+                    ),
             ),
           ),
           const SizedBox(width: 14),
@@ -244,12 +254,11 @@ class _ConsultationStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPaid = consultation?.isPaid ?? false;
-    final statusLabel =
-        isPaid
-            ? 'Pembayaran berhasil dan chat siap dipakai'
-            : consultation == null
-            ? 'Menyiapkan konsultasi Anda'
-            : 'Menunggu pembayaran Midtrans';
+    final statusLabel = isPaid
+        ? 'Pembayaran berhasil dan chat siap dipakai'
+        : consultation == null
+        ? 'Isi catatan gejala lalu lanjutkan ke pembayaran'
+        : 'Menunggu pembayaran Midtrans';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -270,10 +279,7 @@ class _ConsultationStatusCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Isi MIDTRANS_CLIENT_KEY dan MIDTRANS_MERCHANT_BASE_URL saat build/run agar pembayaran aktif di Android atau iOS.',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.lightMutedText,
-              ),
+              style: TextStyle(fontSize: 12, color: AppColors.lightMutedText),
             ),
           ],
         ],
@@ -306,6 +312,7 @@ class _ConsultationNoteCard extends StatelessWidget {
           const SizedBox(height: 8),
           TextField(
             controller: controller.consultationNoteController,
+            enabled: controller.consultation.value == null,
             maxLines: 5,
             decoration: const InputDecoration(
               hintText:
@@ -314,11 +321,10 @@ class _ConsultationNoteCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Catatan ini akan dikirim sebagai pesan pertama setelah pembayaran berhasil.',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.lightMutedText,
-            ),
+            controller.consultation.value == null
+                ? 'Catatan ini akan disimpan sebagai keluhan awal saat konsultasi dibuat.'
+                : 'Catatan keluhan awal sudah tersimpan di konsultasi ini.',
+            style: TextStyle(fontSize: 12, color: AppColors.lightMutedText),
           ),
         ],
       ),
@@ -357,6 +363,20 @@ class _PaymentInfoCard extends StatelessWidget {
             label: 'Status pembayaran',
             value: controller.paymentStatusLabel,
           ),
+          if (controller.consultation.value?.complaint?.trim().isNotEmpty ==
+                  true ||
+              controller.consultation.value?.notes?.trim().isNotEmpty ==
+                  true) ...[
+            const SizedBox(height: 10),
+            _PaymentInfoRow(
+              label: 'Keluhan awal',
+              value:
+                  controller.consultation.value?.complaint?.trim().isNotEmpty ==
+                      true
+                  ? controller.consultation.value!.complaint!.trim()
+                  : controller.consultation.value?.notes?.trim() ?? '-',
+            ),
+          ],
           const SizedBox(height: 10),
           _PaymentInfoRow(
             label: 'Referensi',
@@ -373,10 +393,7 @@ class _PaymentInfoCard extends StatelessWidget {
             value: controller.consultationFeeLabel,
           ),
           const SizedBox(height: 10),
-          _PaymentInfoRow(
-            label: 'Dibayar pada',
-            value: controller.paidAtLabel,
-          ),
+          _PaymentInfoRow(label: 'Dibayar pada', value: controller.paidAtLabel),
           const SizedBox(height: 10),
           _PaymentInfoRow(
             label: 'Catatan',
@@ -389,10 +406,7 @@ class _PaymentInfoCard extends StatelessWidget {
 }
 
 class _PaymentInfoRow extends StatelessWidget {
-  const _PaymentInfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _PaymentInfoRow({required this.label, required this.value});
 
   final String label;
   final String value;

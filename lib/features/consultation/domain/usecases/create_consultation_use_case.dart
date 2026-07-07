@@ -10,11 +10,15 @@ class CreateConsultationUseCase {
     required int partnerUserId,
     required String serviceType,
     required String paymentMethod,
+    String? complaint,
+    String? notes,
   }) {
     return _repository.createConsultation(
       partnerUserId: partnerUserId,
       serviceType: serviceType,
       paymentMethod: paymentMethod,
+      complaint: complaint,
+      notes: notes,
     );
   }
 }

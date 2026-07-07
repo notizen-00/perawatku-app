@@ -22,8 +22,10 @@ class ReverbWebSocketService {
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _socketSubscription;
   Completer<void>? _connectionCompleter;
+  Timer? _reconnectTimer;
   String? _socketId;
   bool _isConnecting = false;
+  bool _isDisconnecting = false;
 
   Future<void> subscribePrivateChannel({
     required String channelName,
@@ -61,6 +63,9 @@ class ReverbWebSocketService {
   }
 
   Future<void> disconnect() async {
+    _isDisconnecting = true;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     _handlers.clear();
     _subscribedChannels.clear();
     _socketId = null;
@@ -70,6 +75,7 @@ class ReverbWebSocketService {
     _socketSubscription = null;
     await _channel?.sink.close();
     _channel = null;
+    _isDisconnecting = false;
   }
 
   Future<void> _connectIfNeeded() async {
@@ -82,6 +88,7 @@ class ReverbWebSocketService {
     }
 
     _isConnecting = true;
+    _isDisconnecting = false;
     _connectionCompleter = Completer<void>();
 
     try {
@@ -192,10 +199,12 @@ class ReverbWebSocketService {
       _connectionCompleter?.completeError(error, stackTrace);
     }
     _resetConnectionState();
+    _scheduleReconnectIfNeeded();
   }
 
   void _handleSocketDone() {
     _resetConnectionState();
+    _scheduleReconnectIfNeeded();
   }
 
   void _resetConnectionState() {
@@ -204,6 +213,34 @@ class ReverbWebSocketService {
     _socketSubscription = null;
     _isConnecting = false;
     _subscribedChannels.clear();
+  }
+
+  void _scheduleReconnectIfNeeded() {
+    if (_isDisconnecting || _handlers.isEmpty || _reconnectTimer != null) {
+      return;
+    }
+
+    _reconnectTimer = Timer(const Duration(seconds: 3), () async {
+      _reconnectTimer = null;
+      if (_isDisconnecting || _handlers.isEmpty) {
+        return;
+      }
+
+      try {
+        await _connectIfNeeded();
+        for (final channelName in List<String>.of(_handlers.keys)) {
+          await _authorizeAndSubscribe(channelName);
+        }
+      } catch (error, stackTrace) {
+        developer.log(
+          'WebSocket reconnect failed',
+          name: 'reverb_websocket',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        _scheduleReconnectIfNeeded();
+      }
+    });
   }
 
   void _send(Map<String, dynamic> payload) {
@@ -225,12 +262,16 @@ class ReverbWebSocketService {
     }
 
     if (value is String && value.trim().isNotEmpty) {
-      final decoded = jsonDecode(value);
-      if (decoded is Map<String, dynamic>) {
-        return decoded;
-      }
-      if (decoded is Map) {
-        return Map<String, dynamic>.from(decoded);
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+      } on FormatException {
+        return null;
       }
     }
 

@@ -18,19 +18,17 @@ class ActivityRecordModel extends ActivityRecordEntity {
   });
 
   factory ActivityRecordModel.fromConsultationJson(Map<String, dynamic> json) {
-    final doctor =
-        json['doctor'] is Map<String, dynamic>
-            ? json['doctor'] as Map<String, dynamic>
-            : json['partner'] is Map<String, dynamic>
-            ? json['partner'] as Map<String, dynamic>
-            : <String, dynamic>{};
+    final doctor = json['doctor'] is Map<String, dynamic>
+        ? json['doctor'] as Map<String, dynamic>
+        : json['partner'] is Map<String, dynamic>
+        ? json['partner'] as Map<String, dynamic>
+        : <String, dynamic>{};
 
-    final doctorName =
-        doctor['name']?.toString().trim().isNotEmpty == true
-            ? doctor['name'].toString().trim()
-            : json['doctor_name']?.toString().trim().isNotEmpty == true
-            ? json['doctor_name'].toString().trim()
-            : 'Dokter';
+    final doctorName = doctor['name']?.toString().trim().isNotEmpty == true
+        ? doctor['name'].toString().trim()
+        : json['doctor_name']?.toString().trim().isNotEmpty == true
+        ? json['doctor_name'].toString().trim()
+        : 'Dokter';
 
     final amount =
         json['total_amount'] ??
@@ -42,21 +40,19 @@ class ActivityRecordModel extends ActivityRecordEntity {
           json['consultation_code'] ?? json['code'] ?? json['reference_code'],
         ) ??
         'Konsultasi #${json['id'] ?? '-'}';
-    final specialization =
-        doctor['partner_profile'] is Map<String, dynamic>
-            ? (doctor['partner_profile']['specialization']?.toString() ?? '')
-            : doctor['doctor_profile'] is Map<String, dynamic>
-            ? (doctor['doctor_profile']['specialization']?.toString() ?? '')
-            : json['specialization']?.toString() ?? '';
+    final specialization = doctor['partner_profile'] is Map<String, dynamic>
+        ? (doctor['partner_profile']['specialization']?.toString() ?? '')
+        : doctor['doctor_profile'] is Map<String, dynamic>
+        ? (doctor['doctor_profile']['specialization']?.toString() ?? '')
+        : json['specialization']?.toString() ?? '';
 
     return ActivityRecordModel(
       id: (json['id'] ?? '').toString(),
       category: 'consultation',
       title: consultationCode,
-      subtitle:
-          specialization.trim().isEmpty
-              ? doctorName
-              : '$doctorName · ${specialization.trim()}',
+      subtitle: specialization.trim().isEmpty
+          ? doctorName
+          : '$doctorName · ${specialization.trim()}',
       status: _resolveConsultationStatus(json),
       dateTime: _parseDateTime(
         json['created_at'] ?? json['updated_at'] ?? json['consultation_date'],
@@ -74,12 +70,100 @@ class ActivityRecordModel extends ActivityRecordEntity {
             doctor['user_id'],
       ),
       doctorName: doctorName,
-      specialization: specialization.trim().isEmpty ? null : specialization.trim(),
+      specialization: specialization.trim().isEmpty
+          ? null
+          : specialization.trim(),
       doctorPhotoUrl: _readString(
         doctor['partner_profile']?['photo_url'] ??
             doctor['doctor_profile']?['photo_url'] ??
             doctor['photo_url'] ??
             json['doctor_photo_url'],
+      ),
+    );
+  }
+
+  factory ActivityRecordModel.fromOrderJson(Map<String, dynamic> json) {
+    final apotik = json['apotik'] is Map<String, dynamic>
+        ? json['apotik'] as Map<String, dynamic>
+        : json['pharmacy'] is Map<String, dynamic>
+        ? json['pharmacy'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final code =
+        _readString(json['order_code'] ?? json['code'] ?? json['reference']) ??
+        'Order #${json['id'] ?? '-'}';
+    final apotikName =
+        _readString(
+          apotik['name'] ?? json['apotik_name'] ?? json['pharmacy_name'],
+        ) ??
+        'Apotik';
+
+    return ActivityRecordModel(
+      id: (json['id'] ?? code).toString(),
+      category: 'medicine',
+      title: code,
+      subtitle: apotikName,
+      status: json['status']?.toString() ?? 'unknown',
+      dateTime: _parseDateTime(json['created_at'] ?? json['updated_at']),
+      amountLabel: _formatAmount(
+        json['total_amount'] ?? json['grand_total'] ?? json['amount'],
+      ),
+      reference:
+          _readString(json['order_id'] ?? json['reference'] ?? code) ?? code,
+      consultationId: null,
+      partnerUserId: _parseInt(
+        json['apotik_user_id'] ?? apotik['user_id'] ?? apotik['id'],
+      ),
+      doctorName: null,
+      specialization: null,
+      doctorPhotoUrl: null,
+    );
+  }
+
+  factory ActivityRecordModel.fromServiceBookingJson(
+    Map<String, dynamic> json,
+  ) {
+    final service = json['service'] is Map<String, dynamic>
+        ? json['service'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final partner = json['assigned_partner'] is Map<String, dynamic>
+        ? json['assigned_partner'] as Map<String, dynamic>
+        : json['partner'] is Map<String, dynamic>
+        ? json['partner'] as Map<String, dynamic>
+        : <String, dynamic>{};
+    final code =
+        _readString(
+          json['booking_code'] ?? json['code'] ?? json['reference'],
+        ) ??
+        'Booking #${json['id'] ?? '-'}';
+    final serviceName =
+        _readString(service['name'] ?? json['service_name']) ?? 'Layanan medis';
+    final partnerName =
+        _readString(partner['name'] ?? json['partner_name']) ?? 'Mitra medis';
+
+    return ActivityRecordModel(
+      id: (json['id'] ?? code).toString(),
+      category: 'other',
+      title: serviceName,
+      subtitle: partnerName,
+      status: json['status']?.toString() ?? 'unknown',
+      dateTime: _parseDateTime(
+        json['scheduled_at'] ?? json['created_at'] ?? json['updated_at'],
+      ),
+      amountLabel: _formatAmount(
+        json['total_amount'] ?? json['grand_total'] ?? json['amount'],
+      ),
+      reference: code,
+      consultationId: null,
+      partnerUserId: _parseInt(
+        json['assigned_partner_user_id'] ??
+            json['partner_user_id'] ??
+            partner['user_id'] ??
+            partner['id'],
+      ),
+      doctorName: partnerName,
+      specialization: serviceName,
+      doctorPhotoUrl: _readString(
+        partner['photo_url'] ?? json['partner_photo_url'],
       ),
     );
   }
@@ -124,10 +208,9 @@ class ActivityRecordModel extends ActivityRecordEntity {
 
   static String _resolveConsultationStatus(Map<String, dynamic> json) {
     final consultationStatus = json['status']?.toString().toLowerCase() ?? '';
-    final payment =
-        json['payment'] is Map<String, dynamic>
-            ? json['payment'] as Map<String, dynamic>
-            : <String, dynamic>{};
+    final payment = json['payment'] is Map<String, dynamic>
+        ? json['payment'] as Map<String, dynamic>
+        : <String, dynamic>{};
     final paymentStatus =
         json['payment_status']?.toString().toLowerCase() ??
         json['transaction_status']?.toString().toLowerCase() ??

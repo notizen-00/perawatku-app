@@ -17,14 +17,15 @@ class ConsultationModel extends ConsultationEntity {
     required super.paymentMethod,
     required super.paymentNotes,
     required super.paidAt,
+    required super.complaint,
+    required super.notes,
     required super.messages,
   });
 
   factory ConsultationModel.fromJson(Map<String, dynamic> json) {
-    final payment =
-        json['payment'] is Map<String, dynamic>
-            ? json['payment'] as Map<String, dynamic>
-            : <String, dynamic>{};
+    final payment = json['payment'] is Map<String, dynamic>
+        ? json['payment'] as Map<String, dynamic>
+        : <String, dynamic>{};
 
     return ConsultationModel(
       id: _parseInt(json['id']) ?? 0,
@@ -70,6 +71,8 @@ class ConsultationModel extends ConsultationEntity {
       paymentMethod: _readString(payment['payment_method']),
       paymentNotes: _readString(payment['notes']),
       paidAt: _readString(payment['paid_at']),
+      complaint: _readString(json['complaint']),
+      notes: _readString(json['notes']),
       messages: _extractMessages(json),
     );
   }

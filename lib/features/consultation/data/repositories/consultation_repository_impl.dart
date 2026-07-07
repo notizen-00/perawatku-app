@@ -16,11 +16,15 @@ class ConsultationRepositoryImpl implements ConsultationRepository {
     required int partnerUserId,
     required String serviceType,
     required String paymentMethod,
+    String? complaint,
+    String? notes,
   }) {
     return _remoteDataSource.createConsultation(
       partnerUserId: partnerUserId,
       serviceType: serviceType,
       paymentMethod: paymentMethod,
+      complaint: complaint,
+      notes: notes,
     );
   }
 
@@ -38,10 +42,12 @@ class ConsultationRepositoryImpl implements ConsultationRepository {
   Future<ConsultationMessageEntity> addMessage({
     required int consultationId,
     required String message,
+    String messageType = 'text',
   }) {
     return _remoteDataSource.addMessage(
       consultationId: consultationId,
       message: message,
+      messageType: messageType,
     );
   }
 }

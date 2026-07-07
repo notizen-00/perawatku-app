@@ -7,25 +7,30 @@ class ConsultationMessageModel extends ConsultationMessageEntity {
     required super.senderId,
     required super.senderName,
     required super.senderRole,
+    required super.messageType,
     required super.message,
     required super.createdAt,
   });
 
   factory ConsultationMessageModel.fromJson(Map<String, dynamic> json) {
-    final sender =
-        json['sender'] is Map<String, dynamic>
-            ? json['sender'] as Map<String, dynamic>
-            : json['user'] is Map<String, dynamic>
-            ? json['user'] as Map<String, dynamic>
-            : <String, dynamic>{};
+    final sender = json['sender'] is Map<String, dynamic>
+        ? json['sender'] as Map<String, dynamic>
+        : json['user'] is Map<String, dynamic>
+        ? json['user'] as Map<String, dynamic>
+        : <String, dynamic>{};
 
     return ConsultationMessageModel(
       id: _parseInt(json['id']) ?? 0,
       consultationId:
-          _parseInt(json['consultation_id'] ?? json['patient_consultation_id']) ??
+          _parseInt(
+            json['consultation_id'] ?? json['patient_consultation_id'],
+          ) ??
           0,
       senderId: _parseInt(
-        json['sender_id'] ?? json['user_id'] ?? sender['id'],
+        json['sender_user_id'] ??
+            json['sender_id'] ??
+            json['user_id'] ??
+            sender['id'],
       ),
       senderName:
           json['sender_name']?.toString() ??
@@ -33,9 +38,8 @@ class ConsultationMessageModel extends ConsultationMessageEntity {
           json['name']?.toString() ??
           '',
       senderRole:
-          json['sender_role']?.toString() ??
-          sender['role']?.toString() ??
-          '',
+          json['sender_role']?.toString() ?? sender['role']?.toString() ?? '',
+      messageType: json['message_type']?.toString() ?? 'text',
       message:
           json['message']?.toString() ??
           json['content']?.toString() ??

@@ -9,6 +9,8 @@ abstract class ConsultationRemoteDataSource {
     required int partnerUserId,
     required String serviceType,
     required String paymentMethod,
+    String? complaint,
+    String? notes,
   });
 
   Future<ConsultationModel> getConsultation(int consultationId);
@@ -18,6 +20,7 @@ abstract class ConsultationRemoteDataSource {
   Future<ConsultationMessageModel> addMessage({
     required int consultationId,
     required String message,
+    String messageType = 'text',
   });
 }
 
@@ -32,13 +35,22 @@ class ConsultationRemoteDataSourceImpl implements ConsultationRemoteDataSource {
     required int partnerUserId,
     required String serviceType,
     required String paymentMethod,
+    String? complaint,
+    String? notes,
   }) async {
+    final trimmedComplaint = complaint?.trim();
+    final trimmedNotes = notes?.trim();
+
     final response = await _apiClient.post(
       AppEndpoints.patientConsultations,
       data: {
         'partner_user_id': partnerUserId,
         'service_type': serviceType,
         'payment_method': paymentMethod,
+        if (trimmedComplaint != null && trimmedComplaint.isNotEmpty)
+          'complaint': trimmedComplaint,
+        if (trimmedNotes != null && trimmedNotes.isNotEmpty)
+          'notes': trimmedNotes,
       },
     );
 
@@ -67,12 +79,11 @@ class ConsultationRemoteDataSourceImpl implements ConsultationRemoteDataSource {
   Future<ConsultationMessageModel> addMessage({
     required int consultationId,
     required String message,
+    String messageType = 'text',
   }) async {
     final response = await _apiClient.post(
       '${AppEndpoints.patientConsultations}/$consultationId/messages',
-      data: {
-        'message': message,
-      },
+      data: {'message': message, 'message_type': messageType},
     );
 
     final resource = _extractResource(response);

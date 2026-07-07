@@ -50,4 +50,34 @@ class ActivityRecordEntity {
         normalized == 'ongoing' ||
         normalized == 'opened';
   }
+
+  bool get isActiveOrder {
+    final normalized = status.toLowerCase();
+
+    if (normalized == 'completed' ||
+        normalized == 'delivered' ||
+        normalized == 'done' ||
+        normalized == 'closed' ||
+        normalized == 'cancel' ||
+        normalized == 'cancelled' ||
+        normalized == 'canceled' ||
+        normalized == 'deny' ||
+        normalized == 'expired' ||
+        normalized == 'failed') {
+      return false;
+    }
+
+    return normalized == 'active' ||
+        normalized == 'confirmed' ||
+        normalized == 'ongoing' ||
+        normalized == 'opened' ||
+        normalized == 'pending' ||
+        normalized == 'processing' ||
+        normalized == 'scheduled' ||
+        normalized == 'paid' ||
+        normalized == 'settlement' ||
+        normalized == 'capture' ||
+        normalized == 'success' ||
+        normalized == 'approved';
+  }
 }

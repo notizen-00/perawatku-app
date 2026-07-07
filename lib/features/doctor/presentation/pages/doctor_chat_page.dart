@@ -18,36 +18,30 @@ class DoctorChatPage extends GetView<DoctorChatController> {
         title: Obx(
           () => Text(
             controller.consultationTitle,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
         ),
         actions: [
           Obx(
             () => IconButton(
-              onPressed:
-                  controller.consultation.value == null
-                      ? null
-                      : () => _showPaymentInfoSheet(context),
+              onPressed: controller.consultation.value == null
+                  ? null
+                  : () => _showPaymentInfoSheet(context),
               icon: const Icon(Icons.receipt_long_rounded),
             ),
           ),
           Obx(
             () => IconButton(
-              onPressed:
-                  controller.isRefreshing.value
-                      ? null
-                      : controller.refreshConsultation,
-              icon:
-                  controller.isRefreshing.value
-                      ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                      : const Icon(Icons.refresh_rounded),
+              onPressed: controller.isRefreshing.value
+                  ? null
+                  : controller.refreshConsultation,
+              icon: controller.isRefreshing.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh_rounded),
             ),
           ),
         ],
@@ -93,15 +87,13 @@ class DoctorChatPage extends GetView<DoctorChatController> {
 
         return Column(
           children: [
-            _ChatHeader(
-              controller: controller,
-              consultation: consultation,
-            ),
+            _ChatHeader(controller: controller, consultation: consultation),
             Expanded(
               child: _MessageList(
                 doctorPhotoUrl: controller.doctorPhotoUrl,
                 messages: controller.messages,
                 isMine: controller.isMine,
+                scrollController: controller.messageScrollController,
               ),
             ),
             _Composer(controller: controller),
@@ -117,75 +109,68 @@ class DoctorChatPage extends GetView<DoctorChatController> {
       isScrollControlled: true,
       showDragHandle: true,
       backgroundColor: Colors.white,
-      builder:
-          (context) => SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Info pembayaran',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _PaymentInfoRow(
-                    label: 'Kode konsultasi',
-                    value: controller.consultationTitle,
-                  ),
-                  const SizedBox(height: 10),
-                  _PaymentInfoRow(
-                    label: 'Status konsultasi',
-                    value: controller.consultationStatusLabel,
-                  ),
-                  const SizedBox(height: 10),
-                  _PaymentInfoRow(
-                    label: 'Status pembayaran',
-                    value: controller.paymentStatusLabel,
-                  ),
-                  const SizedBox(height: 10),
-                  _PaymentInfoRow(
-                    label: 'Referensi',
-                    value: controller.paymentReferenceLabel,
-                  ),
-                  const SizedBox(height: 10),
-                  _PaymentInfoRow(
-                    label: 'Metode bayar',
-                    value: controller.paymentMethodLabel,
-                  ),
-                  const SizedBox(height: 10),
-                  _PaymentInfoRow(
-                    label: 'Biaya',
-                    value: controller.consultationFeeLabel,
-                  ),
-                  const SizedBox(height: 10),
-                  _PaymentInfoRow(
-                    label: 'Dibayar pada',
-                    value: controller.paidAtLabel,
-                  ),
-                  const SizedBox(height: 10),
-                  _PaymentInfoRow(
-                    label: 'Catatan',
-                    value: controller.paymentNotesLabel,
-                  ),
-                ],
+      builder: (context) => SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Info pembayaran',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
-            ),
+              const SizedBox(height: 16),
+              _PaymentInfoRow(
+                label: 'Kode konsultasi',
+                value: controller.consultationTitle,
+              ),
+              const SizedBox(height: 10),
+              _PaymentInfoRow(
+                label: 'Status konsultasi',
+                value: controller.consultationStatusLabel,
+              ),
+              const SizedBox(height: 10),
+              _PaymentInfoRow(
+                label: 'Status pembayaran',
+                value: controller.paymentStatusLabel,
+              ),
+              const SizedBox(height: 10),
+              _PaymentInfoRow(
+                label: 'Referensi',
+                value: controller.paymentReferenceLabel,
+              ),
+              const SizedBox(height: 10),
+              _PaymentInfoRow(
+                label: 'Metode bayar',
+                value: controller.paymentMethodLabel,
+              ),
+              const SizedBox(height: 10),
+              _PaymentInfoRow(
+                label: 'Biaya',
+                value: controller.consultationFeeLabel,
+              ),
+              const SizedBox(height: 10),
+              _PaymentInfoRow(
+                label: 'Dibayar pada',
+                value: controller.paidAtLabel,
+              ),
+              const SizedBox(height: 10),
+              _PaymentInfoRow(
+                label: 'Catatan',
+                value: controller.paymentNotesLabel,
+              ),
+            ],
           ),
+        ),
+      ),
     );
   }
 }
 
 class _ChatHeader extends StatelessWidget {
-  const _ChatHeader({
-    required this.controller,
-    required this.consultation,
-  });
+  const _ChatHeader({required this.controller, required this.consultation});
 
   final DoctorChatController controller;
   final ConsultationEntity consultation;
@@ -245,10 +230,7 @@ class _InfoPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -261,11 +243,13 @@ class _MessageList extends StatelessWidget {
     required this.doctorPhotoUrl,
     required this.messages,
     required this.isMine,
+    required this.scrollController,
   });
 
   final String? doctorPhotoUrl;
   final List<ConsultationMessageEntity> messages;
   final bool Function(ConsultationMessageEntity message) isMine;
+  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -278,6 +262,7 @@ class _MessageList extends StatelessWidget {
     }
 
     return ListView.separated(
+      controller: scrollController,
       reverse: true,
       padding: const EdgeInsets.all(16),
       itemCount: messages.length,
@@ -303,10 +288,9 @@ class _MessageList extends StatelessWidget {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color:
-                      mine
-                          ? AppColors.primary
-                          : AppColors.primary.withValues(alpha: 0.10),
+                  color: mine
+                      ? AppColors.primary
+                      : AppColors.primary.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Column(
@@ -350,14 +334,9 @@ class _DoctorAvatar extends StatelessWidget {
       radius: 14,
       backgroundColor: AppColors.primary.withValues(alpha: 0.12),
       backgroundImage: resolvedUrl != null ? NetworkImage(resolvedUrl) : null,
-      child:
-          resolvedUrl == null
-              ? const Icon(
-                Icons.person_rounded,
-                size: 14,
-                color: AppColors.primary,
-              )
-              : null,
+      child: resolvedUrl == null
+          ? const Icon(Icons.person_rounded, size: 14, color: AppColors.primary)
+          : null,
     );
   }
 
@@ -381,10 +360,7 @@ class _DoctorAvatar extends StatelessWidget {
 }
 
 class _PaymentInfoRow extends StatelessWidget {
-  const _PaymentInfoRow({
-    required this.label,
-    required this.value,
-  });
+  const _PaymentInfoRow({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -443,19 +419,19 @@ class _Composer extends StatelessWidget {
             const SizedBox(width: 10),
             Obx(
               () => ElevatedButton(
-                onPressed:
-                    controller.isSending.value ? null : controller.sendMessage,
-                child:
-                    controller.isSending.value
-                        ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                        : const Icon(Icons.send_rounded),
+                onPressed: controller.isSending.value
+                    ? null
+                    : controller.sendMessage,
+                child: controller.isSending.value
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send_rounded),
               ),
             ),
           ],

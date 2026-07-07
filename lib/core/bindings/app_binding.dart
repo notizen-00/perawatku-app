@@ -23,9 +23,19 @@ import '../../features/doctor/domain/repositories/doctor_repository.dart';
 import '../../features/doctor/domain/usecases/get_doctors_use_case.dart';
 import '../../features/home/controller/home_controller.dart';
 import '../../features/nurse/data/datasources/nurse_remote_data_source.dart';
+import '../../features/nurse/data/datasources/service_booking_remote_data_source.dart';
 import '../../features/nurse/data/repositories/nurse_repository_impl.dart';
+import '../../features/nurse/data/repositories/service_booking_repository_impl.dart';
 import '../../features/nurse/domain/repositories/nurse_repository.dart';
+import '../../features/nurse/domain/repositories/service_booking_repository.dart';
+import '../../features/nurse/domain/usecases/create_service_booking_use_case.dart';
+import '../../features/nurse/domain/usecases/get_service_booking_services_use_case.dart';
+import '../../features/nurse/domain/usecases/get_service_booking_use_case.dart';
 import '../../features/nurse/domain/usecases/get_nurses_use_case.dart';
+import '../../features/notification/data/datasources/notification_remote_data_source.dart';
+import '../../features/notification/data/repositories/notification_repository_impl.dart';
+import '../../features/notification/domain/repositories/notification_repository.dart';
+import '../../features/notification/presentation/controllers/notification_controller.dart';
 import '../controllers/app_theme_controller.dart';
 import '../network/api_client.dart';
 import '../services/reverb_websocket_service.dart';
@@ -50,6 +60,27 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<AuthRemoteDataSource>(
       () => AuthRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<NotificationRemoteDataSource>(
+      () => NotificationRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<NotificationRepository>(
+      () => NotificationRepositoryImpl(
+        remoteDataSource: Get.find<NotificationRemoteDataSource>(),
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<NotificationController>(
+      () => NotificationController(
+        notificationRepository: Get.find<NotificationRepository>(),
+        reverbWebSocketService: Get.find<ReverbWebSocketService>(),
+        storageService: Get.find<StorageService>(),
+      ),
       fenix: true,
     );
 
@@ -95,6 +126,36 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<GetNursesUseCase>(
       () => GetNursesUseCase(Get.find<NurseRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<ServiceBookingRemoteDataSource>(
+      () =>
+          ServiceBookingRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<ServiceBookingRepository>(
+      () => ServiceBookingRepositoryImpl(
+        remoteDataSource: Get.find<ServiceBookingRemoteDataSource>(),
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetServiceBookingServicesUseCase>(
+      () => GetServiceBookingServicesUseCase(
+        Get.find<ServiceBookingRepository>(),
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<CreateServiceBookingUseCase>(
+      () => CreateServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetServiceBookingUseCase>(
+      () => GetServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
       fenix: true,
     );
 

@@ -7,6 +7,8 @@ abstract class ConsultationRepository {
     required int partnerUserId,
     required String serviceType,
     required String paymentMethod,
+    String? complaint,
+    String? notes,
   });
 
   Future<ConsultationEntity> getConsultation(int consultationId);
@@ -16,5 +18,6 @@ abstract class ConsultationRepository {
   Future<ConsultationMessageEntity> addMessage({
     required int consultationId,
     required String message,
+    String messageType = 'text',
   });
 }

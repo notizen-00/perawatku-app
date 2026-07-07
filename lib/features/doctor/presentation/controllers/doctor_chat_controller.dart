@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:midtrans_sdk/midtrans_sdk.dart';
@@ -49,6 +51,7 @@ class DoctorChatController extends GetxController {
   final TextEditingController messageController = TextEditingController();
   final TextEditingController consultationNoteController =
       TextEditingController();
+  final ScrollController messageScrollController = ScrollController();
 
   final Rxn<DoctorEntity> doctor = Rxn<DoctorEntity>();
   final Rxn<ConsultationEntity> consultation = Rxn<ConsultationEntity>();
@@ -62,7 +65,8 @@ class DoctorChatController extends GetxController {
   final RxnString errorMessage = RxnString();
   DoctorChatArguments? _arguments;
   bool _isSyncingPayment = false;
-  bool _hasSubmittedConsultationNote = false;
+  bool _isSyncingMessages = false;
+  Timer? _messageSyncTimer;
   String? _subscribedConsultationChannel;
 
   int? get currentUserId => _storageService.userId;
@@ -189,12 +193,7 @@ class DoctorChatController extends GetxController {
         final existing = await _getConsultationUseCase(existingConsultationId);
         _applyConsultation(existing);
       } else {
-        final created = await _createConsultationUseCase(
-          partnerUserId: selectedPartnerUserId!,
-          serviceType: 'chat',
-          paymentMethod: 'midtrans',
-        );
-        _applyConsultation(created);
+        consultation.value = null;
       }
     } on AppException catch (error) {
       errorMessage.value = error.message;
@@ -226,12 +225,6 @@ class DoctorChatController extends GetxController {
   }
 
   Future<void> payConsultation() async {
-    final currentConsultation = consultation.value;
-    if (currentConsultation == null) {
-      AppSnackbar.error('Pembayaran gagal', 'Konsultasi belum siap.');
-      return;
-    }
-
     if (!_midtransService.isSupportedPlatform) {
       AppSnackbar.info(
         'Midtrans tidak tersedia',
@@ -251,6 +244,7 @@ class DoctorChatController extends GetxController {
     isPaying.value = true;
 
     try {
+      final currentConsultation = await _ensureConsultationCreated();
       final payment = await _payConsultationUseCase(currentConsultation.id);
 
       await _midtransService.startPayment(snapToken: payment.snapToken);
@@ -299,10 +293,12 @@ class DoctorChatController extends GetxController {
       final sentMessage = await _sendConsultationMessageUseCase(
         consultationId: currentConsultation.id,
         message: message,
+        messageType: 'text',
       );
 
       _appendMessageIfNew(sentMessage);
       messageController.clear();
+      _scheduleMessageSync();
     } on AppException catch (error) {
       AppSnackbar.error('Pesan gagal', error.message);
     } catch (_) {
@@ -315,7 +311,10 @@ class DoctorChatController extends GetxController {
   Future<void> openChatPage() async {
     final currentConsultation = consultation.value;
     if (currentConsultation == null) {
-      AppSnackbar.error('Chat belum siap', 'Konsultasi belum tersedia.');
+      AppSnackbar.info(
+        'Pembayaran dibutuhkan',
+        'Buat dan bayar konsultasi dulu sebelum membuka chat.',
+      );
       return;
     }
 
@@ -334,8 +333,6 @@ class DoctorChatController extends GetxController {
         );
         return;
       }
-
-      await _sendConsultationNoteIfNeeded();
 
       if (Get.currentRoute != AppRoutes.doctorChat) {
         await Get.toNamed(
@@ -366,8 +363,48 @@ class DoctorChatController extends GetxController {
 
   void _applyConsultation(ConsultationEntity value) {
     consultation.value = value;
+    _applyExistingConsultationNotes(value);
     messages.assignAll(value.messages);
+    _scrollToLatestMessage();
     _subscribeToConsultationChannelIfNeeded(value);
+  }
+
+  void _applyExistingConsultationNotes(ConsultationEntity value) {
+    if (consultationNoteController.text.trim().isNotEmpty) {
+      return;
+    }
+
+    final note = value.complaint?.trim().isNotEmpty == true
+        ? value.complaint!.trim()
+        : value.notes?.trim();
+
+    if (note != null && note.isNotEmpty) {
+      consultationNoteController.text = note;
+    }
+  }
+
+  Future<ConsultationEntity> _ensureConsultationCreated() async {
+    final currentConsultation = consultation.value;
+    if (currentConsultation != null) {
+      return currentConsultation;
+    }
+
+    final selectedPartnerUserId = partnerUserId;
+    if (selectedPartnerUserId == null) {
+      throw AppException('Data dokter tidak ditemukan.');
+    }
+
+    final symptomNote = consultationNoteController.text.trim();
+    final created = await _createConsultationUseCase(
+      partnerUserId: selectedPartnerUserId,
+      serviceType: 'chat',
+      paymentMethod: 'midtrans',
+      complaint: symptomNote.isEmpty ? null : symptomNote,
+      notes: symptomNote.isEmpty ? null : symptomNote,
+    );
+    _applyConsultation(created);
+
+    return created;
   }
 
   Future<void> _subscribeToConsultationChannelIfNeeded(
@@ -410,15 +447,35 @@ class DoctorChatController extends GetxController {
       return;
     }
 
-    final message = ConsultationMessageModel.fromJson(payload);
+    final message = ConsultationMessageModel.fromJson(
+      _extractMessagePayload(payload),
+    );
     if (message.consultationId != consultation.value?.id) {
       return;
     }
 
-    _appendMessageIfNew(message);
+    final added = _appendMessageIfNew(message);
+    if (added && !isMine(message)) {
+      _showIncomingMessageNotification(message);
+    }
+    _scheduleMessageSync();
   }
 
-  void _appendMessageIfNew(ConsultationMessageEntity message) {
+  Map<String, dynamic> _extractMessagePayload(Map<String, dynamic> payload) {
+    final nestedMessage = payload['message'];
+    if (nestedMessage is Map<String, dynamic>) {
+      return nestedMessage;
+    }
+
+    final nestedData = payload['data'];
+    if (nestedData is Map<String, dynamic>) {
+      return nestedData;
+    }
+
+    return payload;
+  }
+
+  bool _appendMessageIfNew(ConsultationMessageEntity message) {
     final alreadyExists = messages.any((item) {
       if (message.id != 0 && item.id == message.id) {
         return true;
@@ -429,8 +486,67 @@ class DoctorChatController extends GetxController {
           item.createdAt == message.createdAt;
     });
 
-    if (!alreadyExists) {
-      messages.add(message);
+    if (alreadyExists) {
+      return false;
+    }
+
+    messages.add(message);
+    _scrollToLatestMessage();
+    return true;
+  }
+
+  void _scrollToLatestMessage() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!messageScrollController.hasClients) {
+        return;
+      }
+
+      messageScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _showIncomingMessageNotification(ConsultationMessageEntity message) {
+    final senderName = message.senderName.trim().isNotEmpty
+        ? message.senderName
+        : doctorName;
+    final preview = message.message.trim().isNotEmpty
+        ? message.message.trim()
+        : 'Mengirim pesan baru.';
+
+    AppSnackbar.notification('Pesan baru dari $senderName', preview);
+  }
+
+  void _scheduleMessageSync() {
+    _messageSyncTimer?.cancel();
+    _messageSyncTimer = Timer(
+      const Duration(milliseconds: 450),
+      _syncLatestConsultationMessages,
+    );
+  }
+
+  Future<void> _syncLatestConsultationMessages() async {
+    if (_isSyncingMessages) {
+      return;
+    }
+
+    final consultationId = consultation.value?.id;
+    if (consultationId == null || consultationId == 0) {
+      return;
+    }
+
+    _isSyncingMessages = true;
+
+    try {
+      final latest = await _getConsultationUseCase(consultationId);
+      _applyConsultation(latest);
+    } catch (_) {
+      // Realtime event/HTTP response already added the newest known message.
+    } finally {
+      _isSyncingMessages = false;
     }
   }
 
@@ -491,17 +607,6 @@ class DoctorChatController extends GetxController {
 
         if (latest.isPaid) {
           if (Get.currentRoute == AppRoutes.doctorConsultation) {
-            try {
-              await _sendConsultationNoteIfNeeded();
-            } on AppException catch (error) {
-              AppSnackbar.error('Catatan gagal dikirim', error.message);
-            } catch (_) {
-              AppSnackbar.error(
-                'Catatan gagal dikirim',
-                'Chat tetap dibuka, tetapi catatan awal belum berhasil dikirim.',
-              );
-            }
-
             await Get.toNamed(
               AppRoutes.doctorChat,
               arguments: _buildChatArguments(consultationId: latest.id),
@@ -548,34 +653,6 @@ class DoctorChatController extends GetxController {
     }
 
     Get.offAllNamed(AppRoutes.home);
-  }
-
-  Future<void> _sendConsultationNoteIfNeeded() async {
-    final note = consultationNoteController.text.trim();
-    final currentConsultation = consultation.value;
-
-    if (_hasSubmittedConsultationNote ||
-        note.isEmpty ||
-        currentConsultation == null ||
-        !currentConsultation.isPaid ||
-        messages.isNotEmpty) {
-      return;
-    }
-
-    try {
-      final sentMessage = await _sendConsultationMessageUseCase(
-        consultationId: currentConsultation.id,
-        message: note,
-      );
-
-      _appendMessageIfNew(sentMessage);
-      _hasSubmittedConsultationNote = true;
-      consultationNoteController.clear();
-    } on AppException {
-      rethrow;
-    } catch (_) {
-      rethrow;
-    }
   }
 
   DoctorChatArguments _buildChatArguments({required int consultationId}) {
@@ -644,6 +721,7 @@ class DoctorChatController extends GetxController {
 
   @override
   void onClose() {
+    _messageSyncTimer?.cancel();
     final channelName = _subscribedConsultationChannel;
     if (channelName != null) {
       _reverbWebSocketService.unsubscribe(
@@ -651,6 +729,7 @@ class DoctorChatController extends GetxController {
         onEvent: _handleConsultationSocketEvent,
       );
     }
+    messageScrollController.dispose();
     messageController.dispose();
     consultationNoteController.dispose();
     _midtransService.removeTransactionFinishedCallback();

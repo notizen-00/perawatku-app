@@ -16,6 +16,8 @@ class ConsultationEntity {
     required this.paymentMethod,
     required this.paymentNotes,
     required this.paidAt,
+    required this.complaint,
+    required this.notes,
     required this.messages,
   });
 
@@ -33,6 +35,8 @@ class ConsultationEntity {
   final String? paymentMethod;
   final String? paymentNotes;
   final String? paidAt;
+  final String? complaint;
+  final String? notes;
   final List<ConsultationMessageEntity> messages;
 
   bool get isPaid {

@@ -31,6 +31,28 @@ class ActivityController extends GetxController {
   final RxList<ActivityRecordEntity> otherActivities =
       <ActivityRecordEntity>[].obs;
 
+  ActivityRecordEntity? get activeOrder {
+    final records = <ActivityRecordEntity>[
+      ...consultationActivities,
+      ...medicineActivities,
+      ...otherActivities,
+    ].where((record) => record.isActiveOrder).toList();
+
+    if (records.isEmpty) {
+      return null;
+    }
+
+    records.sort((first, second) {
+      final firstTime =
+          first.dateTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final secondTime =
+          second.dateTime ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return secondTime.compareTo(firstTime);
+    });
+
+    return records.first;
+  }
+
   @override
   void onInit() {
     super.onInit();

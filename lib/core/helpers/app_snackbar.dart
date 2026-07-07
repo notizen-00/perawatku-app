@@ -33,11 +33,22 @@ class AppSnackbar {
     );
   }
 
+  static void notification(String title, String message) {
+    _show(
+      title: title,
+      message: message,
+      backgroundColor: AppColors.primary,
+      icon: Icons.notifications_active_rounded,
+      snackPosition: SnackPosition.TOP,
+    );
+  }
+
   static void _show({
     required String title,
     required String message,
     required Color backgroundColor,
     required IconData icon,
+    SnackPosition snackPosition = SnackPosition.BOTTOM,
   }) {
     final glassColor = backgroundColor.withValues(alpha: 0.18);
     final borderColor = backgroundColor.withValues(alpha: 0.35);
@@ -46,7 +57,7 @@ class AppSnackbar {
     Get.snackbar(
       title,
       message,
-      snackPosition: SnackPosition.BOTTOM,
+      snackPosition: snackPosition,
       backgroundColor: glassColor,
       colorText: Colors.white,
       margin: const EdgeInsets.all(16),

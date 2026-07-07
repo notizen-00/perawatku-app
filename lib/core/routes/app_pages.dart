@@ -13,6 +13,7 @@ import '../../features/map/presentation/bindings/map_binding.dart';
 import '../../features/map/presentation/pages/map_page.dart';
 import '../../features/nurse/presentation/bindings/nurse_binding.dart';
 import '../../features/nurse/presentation/pages/nurse_page.dart';
+import '../../features/notification/presentation/pages/notification_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -26,6 +27,10 @@ class AppPages {
     ),
     GetPage(name: AppRoutes.home, page: () => MedicHomePage()),
     GetPage(name: AppRoutes.search, page: () => SearchPage()),
+    GetPage(
+      name: AppRoutes.notifications,
+      page: () => const NotificationPage(),
+    ),
     GetPage(
       name: AppRoutes.nurses,
       page: () => const NursePage(),
