@@ -21,7 +21,7 @@ class ActiveOrderStatusOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final activeOrder = activityController.activeOrder;
+      final activeOrder = activityController.visibleActiveOrder;
       if (activeOrder == null) {
         return const SizedBox.shrink();
       }
@@ -31,6 +31,7 @@ class ActiveOrderStatusOverlay extends StatelessWidget {
         child: _ActiveOrderCard(
           record: activeOrder,
           onTap: () => _openActiveOrder(activeOrder),
+          onDismiss: activityController.dismissActiveOrderOverlay,
         ),
       );
     });
@@ -58,10 +59,15 @@ class ActiveOrderStatusOverlay extends StatelessWidget {
 }
 
 class _ActiveOrderCard extends StatelessWidget {
-  const _ActiveOrderCard({required this.record, required this.onTap});
+  const _ActiveOrderCard({
+    required this.record,
+    required this.onTap,
+    required this.onDismiss,
+  });
 
   final ActivityRecordEntity record;
   final VoidCallback onTap;
+  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -180,11 +186,16 @@ class _ActiveOrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.primary,
-                size: 26,
+              const SizedBox(width: 6),
+              IconButton(
+                onPressed: onDismiss,
+                tooltip: 'Sembunyikan',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: AppColors.lightMutedText,
+                  size: 22,
+                ),
               ),
             ],
           ),

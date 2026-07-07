@@ -62,7 +62,7 @@ class MedicHomePage extends StatelessWidget {
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOut,
               padding: EdgeInsets.only(
-                bottom: activityController.activeOrder == null ? 0 : 98,
+                bottom: activityController.visibleActiveOrder == null ? 0 : 98,
               ),
               child: IndexedStack(
                 index: controller.selectedBottomNavIndex.value,

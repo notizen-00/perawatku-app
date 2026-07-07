@@ -30,6 +30,7 @@ class ActivityController extends GetxController {
       <ActivityRecordEntity>[].obs;
   final RxList<ActivityRecordEntity> otherActivities =
       <ActivityRecordEntity>[].obs;
+  final RxnString dismissedActiveOrderKey = RxnString();
 
   ActivityRecordEntity? get activeOrder {
     final records = <ActivityRecordEntity>[
@@ -53,6 +54,19 @@ class ActivityController extends GetxController {
     return records.first;
   }
 
+  ActivityRecordEntity? get visibleActiveOrder {
+    final order = activeOrder;
+    if (order == null) {
+      return null;
+    }
+
+    if (_activeOrderKey(order) == dismissedActiveOrderKey.value) {
+      return null;
+    }
+
+    return order;
+  }
+
   @override
   void onInit() {
     super.onInit();
@@ -62,6 +76,7 @@ class ActivityController extends GetxController {
   Future<void> loadActivities() async {
     isLoading.value = true;
     errorMessage.value = null;
+    dismissedActiveOrderKey.value = null;
 
     try {
       final consultationResult = await _runSafely(
@@ -89,6 +104,19 @@ class ActivityController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void dismissActiveOrderOverlay() {
+    final order = activeOrder;
+    if (order == null) {
+      return;
+    }
+
+    dismissedActiveOrderKey.value = _activeOrderKey(order);
+  }
+
+  String _activeOrderKey(ActivityRecordEntity order) {
+    return '${order.category}:${order.id}:${order.status}';
   }
 
   Future<List<ActivityRecordEntity>> _runSafely(
