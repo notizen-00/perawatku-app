@@ -14,6 +14,7 @@ import '../../features/map/presentation/pages/map_page.dart';
 import '../../features/nurse/presentation/bindings/nurse_binding.dart';
 import '../../features/nurse/presentation/pages/nurse_page.dart';
 import '../../features/notification/presentation/pages/notification_page.dart';
+import '../../features/patient_member/presentation/pages/patient_member_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -40,6 +41,10 @@ class AppPages {
       name: AppRoutes.doctors,
       page: () => const DoctorPage(),
       binding: DoctorBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.patientMembers,
+      page: () => const PatientMemberPage(),
     ),
     GetPage(
       name: AppRoutes.doctorConsultation,

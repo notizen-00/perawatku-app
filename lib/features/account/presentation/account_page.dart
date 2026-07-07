@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../core/routes/app_routes.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../controller/account_controller.dart';
@@ -148,6 +149,16 @@ class AccountPage extends StatelessWidget {
                           _MenuSection(
                             isDark: isDark,
                             items: [
+                              _MenuItemData(
+                                icon: Icons.groups_2_rounded,
+                                title: 'Profil keluarga',
+                                subtitle:
+                                    'Kelola profil suami, istri, anak, kakek, nenek, dan pasien lain',
+                                badge: 'CRUD',
+                                badgeColor: AppColors.primary,
+                                onTap: () =>
+                                    Get.toNamed(AppRoutes.patientMembers),
+                              ),
                               _MenuItemData(
                                 icon: Icons.health_and_safety_rounded,
                                 title: 'Keamanan akun',
@@ -754,9 +765,12 @@ class _MenuTile extends StatelessWidget {
     final subtitleColor =
         isDark ? AppColors.darkMutedText : AppColors.lightMutedText;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
-      child: Row(
+    return InkWell(
+      onTap: item.onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+        child: Row(
         children: [
           Icon(
             item.icon,
@@ -825,6 +839,7 @@ class _MenuTile extends StatelessWidget {
             color: isDark ? Colors.white70 : const Color(0xFF61656A),
           ),
         ],
+        ),
       ),
     );
   }
@@ -891,6 +906,7 @@ class _MenuItemData {
     this.subtitle,
     this.badge,
     this.badgeColor,
+    this.onTap,
   });
 
   final IconData icon;
@@ -898,4 +914,5 @@ class _MenuItemData {
   final String? subtitle;
   final String? badge;
   final Color? badgeColor;
+  final VoidCallback? onTap;
 }

@@ -37,6 +37,14 @@ import '../../features/notification/data/datasources/notification_remote_data_so
 import '../../features/notification/data/repositories/notification_repository_impl.dart';
 import '../../features/notification/domain/repositories/notification_repository.dart';
 import '../../features/notification/presentation/controllers/notification_controller.dart';
+import '../../features/patient_member/data/datasources/patient_member_remote_data_source.dart';
+import '../../features/patient_member/data/repositories/patient_member_repository_impl.dart';
+import '../../features/patient_member/domain/repositories/patient_member_repository.dart';
+import '../../features/patient_member/domain/usecases/delete_patient_member_use_case.dart';
+import '../../features/patient_member/domain/usecases/get_patient_members_use_case.dart';
+import '../../features/patient_member/domain/usecases/save_patient_member_use_case.dart';
+import '../../features/patient_member/domain/usecases/set_primary_patient_member_use_case.dart';
+import '../../features/patient_member/presentation/controllers/patient_member_controller.dart';
 import '../controllers/app_theme_controller.dart';
 import '../network/api_client.dart';
 import '../services/reverb_websocket_service.dart';
@@ -162,6 +170,48 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<PayServiceBookingUseCase>(
       () => PayServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<PatientMemberRemoteDataSource>(
+      () => PatientMemberRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<PatientMemberRepository>(
+      () => PatientMemberRepositoryImpl(
+        remoteDataSource: Get.find<PatientMemberRemoteDataSource>(),
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetPatientMembersUseCase>(
+      () => GetPatientMembersUseCase(Get.find<PatientMemberRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<SavePatientMemberUseCase>(
+      () => SavePatientMemberUseCase(Get.find<PatientMemberRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<SetPrimaryPatientMemberUseCase>(
+      () => SetPrimaryPatientMemberUseCase(Get.find<PatientMemberRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<DeletePatientMemberUseCase>(
+      () => DeletePatientMemberUseCase(Get.find<PatientMemberRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<PatientMemberController>(
+      () => PatientMemberController(
+        getMembersUseCase: Get.find<GetPatientMembersUseCase>(),
+        saveMemberUseCase: Get.find<SavePatientMemberUseCase>(),
+        setPrimaryUseCase: Get.find<SetPrimaryPatientMemberUseCase>(),
+        deleteMemberUseCase: Get.find<DeletePatientMemberUseCase>(),
+      ),
       fenix: true,
     );
 

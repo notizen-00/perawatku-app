@@ -7,6 +7,7 @@ class AppEndpoints {
   static const String patientServices = '/api/patient/services';
   static const String patientConsultations = '/api/patient/consultations';
   static const String patientOrders = '/api/patient/orders';
+  static const String patientMembers = '/api/patient/members';
   static const String patientServiceBookings = '/api/patient/service-bookings';
   static const String patientServiceBookingServices =
       '/api/patient/service-bookings/services';
