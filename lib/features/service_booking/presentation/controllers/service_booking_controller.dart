@@ -659,17 +659,7 @@ class ServiceBookingController extends GetxController {
 
       AppSnackbar.success(
         'Booking dibuat',
-        'Lanjutkan ke checkout pembayaran agar pesanan bisa diproses.',
-      );
-
-      await Get.toNamed(
-        AppRoutes.serviceBookingDetail,
-        arguments: {
-          'bookingId': booking.id,
-          'booking': booking,
-          'serviceName': service.name,
-          'patientName': patientMember.name,
-        },
+        'Selesaikan pembayaran dulu agar backend mulai mencari mitra.',
       );
     } on AppException catch (error) {
       AppSnackbar.error('Booking gagal', error.message);
@@ -681,6 +671,24 @@ class ServiceBookingController extends GetxController {
     } finally {
       isCreatingBooking.value = false;
     }
+  }
+
+  Future<void> openLatestBookingDetail() async {
+    final booking = latestBooking.value;
+    if (booking == null) {
+      AppSnackbar.info('Booking belum ada', 'Buat booking terlebih dahulu.');
+      return;
+    }
+
+    await Get.toNamed(
+      AppRoutes.serviceBookingDetail,
+      arguments: {
+        'bookingId': booking.id,
+        'booking': booking,
+        'serviceName': selectedService.value?.name,
+        'patientName': selectedPatientMember.value?.name,
+      },
+    );
   }
 
   Future<void> openLatestBookingPayment() async {

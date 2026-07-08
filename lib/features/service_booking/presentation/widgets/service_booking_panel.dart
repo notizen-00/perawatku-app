@@ -67,14 +67,23 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.route_rounded),
+                    : const Icon(Icons.payments_rounded),
                 label: Text(
                   controller.isCreatingBooking.value
                       ? 'Membuat booking...'
-                      : 'Buat booking & matchmaking',
+                      : 'Buat booking & lanjut bayar',
                 ),
               ),
             ),
+            if (controller.latestBooking.value != null) ...[
+              const SizedBox(height: 12),
+              _MatchmakingStatusCard(
+                isPaid: controller.latestBooking.value?.isPaid == true,
+                hasPartner:
+                    controller.latestBooking.value?.matchmaking != null,
+                onOpenDetail: controller.openLatestBookingDetail,
+              ),
+            ],
             if (!controller.isMidtransReady) ...[
               const SizedBox(height: 10),
               Text(
@@ -91,6 +100,111 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
           ],
         );
       }),
+    );
+  }
+}
+
+class _MatchmakingStatusCard extends StatelessWidget {
+  const _MatchmakingStatusCard({
+    required this.isPaid,
+    required this.hasPartner,
+    required this.onOpenDetail,
+  });
+
+  final bool isPaid;
+  final bool hasPartner;
+  final VoidCallback onOpenDetail;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor =
+        isDark ? const Color(0xFF0D1B19) : const Color(0xFFF2FBF8);
+    final borderColor =
+        isDark ? AppColors.darkBorder : AppColors.primary.withValues(alpha: 0.2);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              hasPartner
+                  ? Icons.verified_rounded
+                  : isPaid
+                  ? Icons.manage_search_rounded
+                  : Icons.payments_rounded,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  hasPartner
+                      ? 'Mitra layanan ditemukan'
+                      : isPaid
+                      ? 'Pembayaran diterima'
+                      : 'Selesaikan pembayaran dulu',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  hasPartner
+                      ? 'Mitra sudah ditetapkan untuk booking ini.'
+                      : isPaid
+                      ? 'Backend sedang mencari mitra yang sesuai untuk layanan ini.'
+                      : 'Matchmaking akan berjalan setelah pembayaran berhasil.',
+                  style: TextStyle(
+                    color:
+                        isDark ? AppColors.darkMutedText : AppColors.lightMutedText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: onOpenDetail,
+                    icon: Icon(
+                      isPaid
+                          ? Icons.receipt_long_rounded
+                          : Icons.payments_rounded,
+                      size: 18,
+                    ),
+                    label: Text(
+                      hasPartner
+                          ? 'Lihat detail'
+                          : isPaid
+                          ? 'Cek status mitra'
+                          : 'Lanjut bayar',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -143,92 +257,102 @@ class _ServicePickerSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (controller.isLoadingServices.value &&
-        controller.serviceCategories.isEmpty) {
-      return const LinearProgressIndicator(minHeight: 3);
-    }
+    return Obx(
+      () {
+        if (controller.isLoadingServices.value &&
+            controller.serviceCategories.isEmpty) {
+          return const LinearProgressIndicator(minHeight: 3);
+        }
 
-    final categories = controller.serviceCategories;
-    final error = controller.serviceErrorMessage.value;
-    if (categories.isEmpty) {
-      if (error != null) {
-        return InlineError(
-          message: error,
-          onRetry: () {
-            controller.loadServiceCategories();
-          },
-        );
-      }
+        final categories = controller.serviceCategories;
+        final error = controller.serviceErrorMessage.value;
+        if (categories.isEmpty) {
+          if (error != null) {
+            return InlineError(
+              message: error,
+              onRetry: () {
+                controller.loadServiceCategories();
+              },
+            );
+          }
 
-      return InlineError(
-        message: 'Katalog layanan belum tersedia dari backend.',
-        onRetry: () {
-          controller.loadServiceCategories();
-        },
-      );
-    }
-
-    final selectedCategory = controller.selectedServiceCategory;
-    final categoryServices = selectedCategory == null
-        ? const <ServiceBookingServiceEntity>[]
-        : controller.services.toList();
-    final isLoadingCategoryServices =
-        controller.isLoadingCategoryServices.value;
-
-    return Column(
-      children: [
-        _ServiceCategoryPicker(
-          categories: categories,
-          selectedCategory: selectedCategory,
-          onChanged: (category) {
-            controller.selectServiceCategory(category);
-          },
-        ),
-        const SizedBox(height: 10),
-        if (error != null)
-          InlineError(
-            message: error,
+          return InlineError(
+            message: 'Katalog layanan belum tersedia dari backend.',
             onRetry: () {
-              controller.reloadSelectedCategoryServices();
+              controller.loadServiceCategories();
             },
-          )
-        else if (selectedCategory == null)
-          _ServicePicker(
-            services: const <ServiceBookingServiceEntity>[],
-            selectedService: null,
-            hasSelectedCategory: false,
-            isLoading: false,
-            onChanged: (_) {},
-          )
-        else if (categoryServices.isEmpty && !isLoadingCategoryServices)
-          InlineError(
-            message: 'Belum ada layanan pada kategori ini.',
-            onRetry: () {
-              controller.reloadSelectedCategoryServices();
-            },
-          )
-        else
-          _ServicePicker(
-            key: ValueKey(
-              '${selectedCategory.key}-${controller.selectedService.value?.bookingServiceId}-${categoryServices.length}-$isLoadingCategoryServices',
+          );
+        }
+
+        final selectedCategory = controller.selectedServiceCategory;
+        final categoryServices = selectedCategory == null
+            ? const <ServiceBookingServiceEntity>[]
+            : controller.services.toList();
+        final selectedService = controller.selectedService.value;
+        final isLoadingCategoryServices =
+            controller.isLoadingCategoryServices.value;
+
+        return Column(
+          children: [
+            _ServiceCategoryPicker(
+              key: ValueKey('category-${selectedCategory?.key ?? 'empty'}'),
+              categories: categories,
+              selectedCategory: selectedCategory,
+              onChanged: (category) {
+                controller.selectServiceCategory(category);
+              },
             ),
-            services: categoryServices,
-            selectedService: controller.selectedService.value,
-            hasSelectedCategory: true,
-            isLoading: isLoadingCategoryServices,
-            onChanged: (service) {
-              if (service != null) {
-                controller.selectService(service);
-              }
-            },
-          ),
-      ],
+            const SizedBox(height: 10),
+            if (error != null)
+              InlineError(
+                message: error,
+                onRetry: () {
+                  controller.reloadSelectedCategoryServices();
+                },
+              )
+            else if (selectedCategory == null)
+              _ServicePicker(
+                services: const <ServiceBookingServiceEntity>[],
+                selectedService: null,
+                hasSelectedCategory: false,
+                isLoading: false,
+                onChanged: (_) {},
+              )
+            else if (categoryServices.isEmpty && !isLoadingCategoryServices)
+              _ServicePicker(
+                key: ValueKey('service-empty-${selectedCategory.key}'),
+                services: const <ServiceBookingServiceEntity>[],
+                selectedService: null,
+                hasSelectedCategory: true,
+                isLoading: false,
+                emptyText: 'Belum ada layanan pada kategori ini.',
+                onChanged: (_) {},
+              )
+            else
+              _ServicePicker(
+                key: ValueKey(
+                  'service-${selectedCategory.key}-${selectedService?.bookingServiceId}-${categoryServices.length}-$isLoadingCategoryServices',
+                ),
+                services: categoryServices,
+                selectedService: selectedService,
+                hasSelectedCategory: true,
+                isLoading: isLoadingCategoryServices,
+                onChanged: (service) {
+                  if (service != null) {
+                    controller.selectService(service);
+                  }
+                },
+              ),
+          ],
+        );
+      },
     );
   }
 }
 
 class _ServiceCategoryPicker extends StatelessWidget {
   const _ServiceCategoryPicker({
+    super.key,
     required this.categories,
     required this.selectedCategory,
     required this.onChanged,
@@ -285,6 +409,7 @@ class _ServicePicker extends StatelessWidget {
     required this.hasSelectedCategory,
     required this.isLoading,
     required this.onChanged,
+    this.emptyText,
   });
 
   final List<ServiceBookingServiceEntity> services;
@@ -292,6 +417,7 @@ class _ServicePicker extends StatelessWidget {
   final bool hasSelectedCategory;
   final bool isLoading;
   final ValueChanged<ServiceBookingServiceEntity?> onChanged;
+  final String? emptyText;
 
   @override
   Widget build(BuildContext context) {
@@ -305,6 +431,8 @@ class _ServicePicker extends StatelessWidget {
         prefixIcon: const Icon(Icons.medical_services_rounded),
         hintText: isLoading
             ? 'Memuat layanan...'
+            : emptyText != null
+                ? emptyText
             : hasSelectedCategory
                 ? 'Pilih layanan'
                 : 'Pilih kategori dulu',
