@@ -636,9 +636,9 @@ class _PremiumBookingExperience extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Live Tracking',
-                            style: TextStyle(
+                          Text(
+                            _panelTitle(booking),
+                            style: const TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0,
@@ -647,7 +647,10 @@ class _PremiumBookingExperience extends StatelessWidget {
                           const SizedBox(height: 4),
                           Obx(
                             () => Text(
-                              'Estimated arrival in ${_formatDuration(routeDurationSeconds.value)}',
+                              _panelSubtitle(
+                                booking,
+                                routeDurationSeconds.value,
+                              ),
                               style: TextStyle(
                                 color: isDark
                                     ? AppColors.darkMutedText
@@ -741,6 +744,42 @@ class _PremiumBookingExperience extends StatelessWidget {
     final rest = minutes % 60;
     return rest == 0 ? '$hours hr' : '$hours hr $rest mins';
   }
+
+  static String _panelTitle(ServiceBookingEntity booking) {
+    final status = booking.status.toLowerCase().trim();
+    if (status == 'completed') {
+      return 'Layanan Selesai';
+    }
+    if (status == 'cancelled') {
+      return 'Pesanan Dibatalkan';
+    }
+    if (booking.isOnTheWay) {
+      return 'Live Tracking';
+    }
+    if (status == 'confirmed' || status == 'scheduled') {
+      return 'Mitra Disiapkan';
+    }
+    return 'Menunggu Mitra';
+  }
+
+  static String _panelSubtitle(ServiceBookingEntity booking, double seconds) {
+    final status = booking.status.toLowerCase().trim();
+    if (booking.isOnTheWay) {
+      return 'Estimated arrival in ${_formatDuration(seconds)}';
+    }
+    if (status == 'completed') {
+      return booking.partnerBalanceTransactionId == null
+          ? 'Konfirmasi selesai agar saldo mitra diproses.'
+          : 'Saldo mitra sudah diproses.';
+    }
+    if (status == 'cancelled') {
+      return 'Pesanan ini sudah tidak aktif.';
+    }
+    if (status == 'confirmed' || status == 'scheduled') {
+      return 'Map aktif saat mitra mulai menuju lokasi.';
+    }
+    return 'Kami mencari mitra yang sesuai untuk pesanan ini.';
+  }
 }
 
 class _PrimaryTrackingActions extends StatelessWidget {
@@ -818,15 +857,12 @@ class _PremiumMapPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!booking.isOnTheWay) {
+      return _BookingStatusHero(booking: booking);
+    }
+
     if (!booking.hasTrackingCoordinates) {
-      return SizedBox.expand(
-        child: Container(
-          color: const Color(0xFFDDEBE8),
-          child: const Center(
-            child: Icon(Icons.map_rounded, color: AppColors.primary, size: 42),
-          ),
-        ),
-      );
+      return _BookingStatusHero(booking: booking);
     }
 
     final partnerPoint = LatLng(
@@ -900,6 +936,267 @@ class _PremiumMapPreview extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _BookingStatusHero extends StatelessWidget {
+  const _BookingStatusHero({required this.booking});
+
+  final ServiceBookingEntity booking;
+
+  @override
+  Widget build(BuildContext context) {
+    final config = _StatusHeroConfig.fromBooking(booking);
+
+    return SizedBox.expand(
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: config.backgroundColor),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _StatusPatternPainter(color: config.accentColor),
+              ),
+            ),
+            Center(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.94, end: 1),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeInOut,
+                builder: (context, value, child) {
+                  return Transform.scale(scale: value, child: child);
+                },
+                onEnd: () {},
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _AnimatedStatusBadge(config: config),
+                    const SizedBox(height: 18),
+                    Text(
+                      config.title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 36),
+                      child: Text(
+                        config.subtitle,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.black.withValues(alpha: 0.58),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnimatedStatusBadge extends StatefulWidget {
+  const _AnimatedStatusBadge({required this.config});
+
+  final _StatusHeroConfig config;
+
+  @override
+  State<_AnimatedStatusBadge> createState() => _AnimatedStatusBadgeState();
+}
+
+class _AnimatedStatusBadgeState extends State<_AnimatedStatusBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 0.88,
+      end: 1.08,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _syncAnimationState();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedStatusBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.config.isFinalState != widget.config.isFinalState) {
+      _syncAnimationState();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final config = widget.config;
+
+    if (config.isFinalState) {
+      return _StatusBadge(config: config, scale: 1);
+    }
+
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return _StatusBadge(config: config, scale: _scaleAnimation.value);
+      },
+    );
+  }
+
+  void _syncAnimationState() {
+    if (widget.config.isFinalState) {
+      _controller.stop();
+    } else {
+      _controller.repeat(reverse: true);
+    }
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.config, required this.scale});
+
+  final _StatusHeroConfig config;
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Transform.scale(
+          scale: scale,
+          child: Container(
+            width: 108,
+            height: 108,
+            decoration: BoxDecoration(
+              color: config.accentColor.withValues(alpha: 0.13),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        Container(
+          width: 78,
+          height: 78,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: config.accentColor.withValues(alpha: 0.24),
+                blurRadius: 24,
+                offset: const Offset(0, 12),
+              ),
+            ],
+          ),
+          child: Icon(config.icon, color: config.accentColor, size: 38),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusHeroConfig {
+  const _StatusHeroConfig({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.backgroundColor,
+    required this.isFinalState,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+  final Color backgroundColor;
+  final bool isFinalState;
+
+  factory _StatusHeroConfig.fromBooking(ServiceBookingEntity booking) {
+    final status = booking.status.toLowerCase().trim();
+
+    if (status == 'completed') {
+      return const _StatusHeroConfig(
+        title: 'Layanan Selesai',
+        subtitle: 'Terima kasih, layanan sudah ditandai selesai.',
+        icon: Icons.check_circle_rounded,
+        accentColor: AppColors.success,
+        backgroundColor: Color(0xFFEFFAF5),
+        isFinalState: true,
+      );
+    }
+
+    if (status == 'cancelled') {
+      return const _StatusHeroConfig(
+        title: 'Pesanan Dibatalkan',
+        subtitle: 'Pesanan ini sudah tidak aktif.',
+        icon: Icons.cancel_rounded,
+        accentColor: AppColors.error,
+        backgroundColor: Color(0xFFFFF2F2),
+        isFinalState: true,
+      );
+    }
+
+    if (status == 'confirmed' || status == 'scheduled') {
+      return const _StatusHeroConfig(
+        title: 'Mitra Disiapkan',
+        subtitle: 'Live map aktif saat mitra mulai menuju lokasi.',
+        icon: Icons.medical_services_rounded,
+        accentColor: AppColors.primary,
+        backgroundColor: Color(0xFFEFF8F5),
+        isFinalState: false,
+      );
+    }
+
+    return const _StatusHeroConfig(
+      title: 'Menunggu Mitra',
+      subtitle: 'Kami sedang memantau status pesanan secara live.',
+      icon: Icons.hourglass_top_rounded,
+      accentColor: AppColors.warning,
+      backgroundColor: Color(0xFFFFF8EA),
+      isFinalState: false,
+    );
+  }
+}
+
+class _StatusPatternPainter extends CustomPainter {
+  const _StatusPatternPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.08)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawCircle(Offset(size.width * 0.18, size.height * 0.22), 54, paint);
+    canvas.drawCircle(Offset(size.width * 0.88, size.height * 0.24), 74, paint);
+    canvas.drawCircle(Offset(size.width * 0.72, size.height * 0.86), 92, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _StatusPatternPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 

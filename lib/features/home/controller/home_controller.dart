@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 
 import '../../../core/errors/app_exception.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../nurse/domain/entities/nurse_entity.dart';
 import '../../nurse/domain/usecases/get_nurses_use_case.dart';
 import '../../service_booking/domain/entities/service_booking_service_entity.dart';
@@ -12,8 +13,8 @@ class HomeController extends GetxController {
   HomeController({
     required GetNursesUseCase getNursesUseCase,
     required GetServiceBookingServicesUseCase getServicesUseCase,
-  })  : _getNursesUseCase = getNursesUseCase,
-        _getServicesUseCase = getServicesUseCase;
+  }) : _getNursesUseCase = getNursesUseCase,
+       _getServicesUseCase = getServicesUseCase;
 
   final GetNursesUseCase _getNursesUseCase;
   final GetServiceBookingServicesUseCase _getServicesUseCase;
@@ -42,6 +43,13 @@ class HomeController extends GetxController {
 
   void selectBottomNav(int index) {
     selectedBottomNavIndex.value = index;
+  }
+
+  Future<void> refreshHome() async {
+    await Future.wait([
+      fetchCurrentLocation(),
+      fetchServiceCatalog(),
+    ]);
   }
 
   Future<void> fetchCurrentLocation() async {
@@ -204,8 +212,8 @@ class HomeController extends GetxController {
     final groups = <String, ServiceCategoryGroup>{};
 
     for (final service in serviceCatalog) {
-      final categoryName = (service.categoryName ?? service.category ?? 'Lainnya')
-          .trim();
+      final categoryName =
+          (service.categoryName ?? service.category ?? 'Lainnya').trim();
       final label = categoryName.isEmpty ? 'Lainnya' : categoryName;
       final key = service.categoryId?.toString() ?? label.toLowerCase();
       final current = groups[key];
@@ -249,8 +257,35 @@ class HomeController extends GetxController {
   }
 
   void openMatchmakingForService(ServiceBookingServiceEntity service) {
+    if (_isDoctorConsultationService(service)) {
+      Get.toNamed(AppRoutes.doctors);
+      return;
+    }
+
     requestedMatchmakingServiceId.value = service.bookingServiceId;
     selectBottomNav(2);
+  }
+
+  bool _isDoctorConsultationService(ServiceBookingServiceEntity service) {
+    final haystack = [
+      service.name,
+      service.category,
+      service.categoryName,
+      service.serviceType,
+      service.serviceMode,
+    ].whereType<String>().join(' ').toLowerCase();
+
+    final isDoctor =
+        haystack.contains('dokter') ||
+        haystack.contains('doctor') ||
+        haystack.contains('konsultasi') ||
+        haystack.contains('consultation');
+    final isVisitHomecare =
+        haystack.contains('homecare') ||
+        haystack.contains('home care') ||
+        haystack.contains('visit');
+
+    return isDoctor && !isVisitHomecare;
   }
 
   String _joinLocationParts(List<String?> parts) {
@@ -289,25 +324,25 @@ class LocationBannerState {
   });
 
   const LocationBannerState.loading()
-      : title = 'Mengambil lokasi real...',
-        subtitle = 'Mohon tunggu, kami sedang membaca posisi perangkat Anda.',
-        actionLabel = 'Memuat',
-        isLoading = true,
-        hasError = false;
+    : title = 'Mengambil lokasi real...',
+      subtitle = 'Mohon tunggu, kami sedang membaca posisi perangkat Anda.',
+      actionLabel = 'Memuat',
+      isLoading = true,
+      hasError = false;
 
   const LocationBannerState.ready({
     required this.title,
     required this.subtitle,
     required this.actionLabel,
-  })  : isLoading = false,
-        hasError = false;
+  }) : isLoading = false,
+       hasError = false;
 
   const LocationBannerState.error({
     required this.title,
     required this.subtitle,
     required this.actionLabel,
-  })  : isLoading = false,
-        hasError = true;
+  }) : isLoading = false,
+       hasError = true;
 
   final String title;
   final String subtitle;

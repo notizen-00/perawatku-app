@@ -1,4 +1,5 @@
 import '../../domain/entities/activity_record_entity.dart';
+import '../../../../core/helpers/currency_formatter.dart';
 
 class ActivityRecordModel extends ActivityRecordEntity {
   const ActivityRecordModel({
@@ -248,28 +249,16 @@ class ActivityRecordModel extends ActivityRecordEntity {
   }
 
   static String _formatAmount(dynamic value) {
-    final digits = value?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '';
-    if (digits.isEmpty) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty) {
       return '-';
     }
 
-    final number = int.tryParse(digits);
-    if (number == null) {
-      return '-';
+    if (value is num) {
+      return CurrencyFormatter.formatRupiah(value);
     }
 
-    final raw = number.toString();
-    final buffer = StringBuffer();
-
-    for (var index = 0; index < raw.length; index++) {
-      final reverseIndex = raw.length - index;
-      buffer.write(raw[index]);
-      if (reverseIndex > 1 && reverseIndex % 3 == 1) {
-        buffer.write('.');
-      }
-    }
-
-    return 'Rp$buffer';
+    return CurrencyFormatter.formatRupiahFromString(raw, emptyValue: '-');
   }
 
   static String? _readString(dynamic value) {
