@@ -55,6 +55,19 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
   }
 
   @override
+  Future<ServiceBookingEntity> confirmCompletion(
+    int bookingId, {
+    String? notes,
+  }) {
+    return _remoteDataSource.confirmCompletion(bookingId, notes: notes);
+  }
+
+  @override
+  Future<ServiceBookingEntity> cancelBooking(int bookingId, {String? reason}) {
+    return _remoteDataSource.cancelBooking(bookingId, reason: reason);
+  }
+
+  @override
   Future<Map<String, dynamic>> checkPromoCode({
     required String code,
     required int serviceId,

@@ -19,6 +19,15 @@ class ServiceBookingModel extends ServiceBookingEntity {
     required super.snapToken,
     required super.paymentReference,
     required super.matchmaking,
+    required super.patientLatitude,
+    required super.patientLongitude,
+    required super.partnerLatitude,
+    required super.partnerLongitude,
+    required super.partnerLastUpdate,
+    required super.acceptedAt,
+    required super.startedAt,
+    required super.completedAt,
+    required super.partnerBalanceTransactionId,
   });
 
   factory ServiceBookingModel.fromJson(Map<String, dynamic> json) {
@@ -50,20 +59,38 @@ class ServiceBookingModel extends ServiceBookingEntity {
         _readMap(root['matchmaking']) ??
         _readMap(data?['matchmaking']) ??
         _readMap(booking['matchmaking']);
-    final service = _readMap(booking['service']) ??
+    final service =
+        _readMap(booking['service']) ??
         _readMap(data?['service']) ??
         _readMap(root['service']) ??
         <String, dynamic>{};
-    final patientMember = _readMap(booking['patient_member']) ??
+    final patientMember =
+        _readMap(booking['patient_member']) ??
         _readMap(data?['patient_member']) ??
         _readMap(root['patient_member']) ??
         <String, dynamic>{};
-    final partner = _readMap(booking['assigned_partner']) ??
+    final address =
+        _readMap(booking['address']) ??
+        _readMap(booking['patient_address']) ??
+        _readMap(data?['address']) ??
+        _readMap(data?['patient_address']) ??
+        _readMap(root['address']) ??
+        _readMap(root['patient_address']) ??
+        <String, dynamic>{};
+    final partner =
+        _readMap(booking['assigned_partner']) ??
         _readMap(booking['partner']) ??
         _readMap(data?['assigned_partner']) ??
         _readMap(data?['partner']) ??
         _readMap(root['assigned_partner']) ??
         _readMap(root['partner']) ??
+        <String, dynamic>{};
+    final partnerProfile =
+        _readMap(partner['partner_profile']) ??
+        _readMap(partner['profile']) ??
+        _readMap(booking['assigned_partner_profile']) ??
+        _readMap(data?['assigned_partner_profile']) ??
+        _readMap(root['assigned_partner_profile']) ??
         <String, dynamic>{};
 
     return ServiceBookingModel(
@@ -129,6 +156,48 @@ class ServiceBookingModel extends ServiceBookingEntity {
       matchmaking: matchmakingJson == null
           ? null
           : ServiceBookingMatchmakingModel.fromJson(matchmakingJson),
+      patientLatitude: _readDouble(
+        address['latitude'] ??
+            patientMember['latitude'] ??
+            booking['patient_latitude'] ??
+            data?['patient_latitude'],
+      ),
+      patientLongitude: _readDouble(
+        address['longitude'] ??
+            patientMember['longitude'] ??
+            booking['patient_longitude'] ??
+            data?['patient_longitude'],
+      ),
+      partnerLatitude: _readDouble(
+        partner['latitude'] ??
+            partnerProfile['latitude'] ??
+            booking['partner_latitude'] ??
+            data?['partner_latitude'],
+      ),
+      partnerLongitude: _readDouble(
+        partner['longitude'] ??
+            partnerProfile['longitude'] ??
+            booking['partner_longitude'] ??
+            data?['partner_longitude'],
+      ),
+      partnerLastUpdate: _readDateTime(
+        partner['last_update'] ??
+            partner['location_updated_at'] ??
+            partnerProfile['last_update'] ??
+            partnerProfile['updated_at'] ??
+            booking['partner_location_updated_at'] ??
+            data?['partner_location_updated_at'],
+      ),
+      acceptedAt: _readString(booking['accepted_at'] ?? data?['accepted_at']),
+      startedAt: _readString(booking['started_at'] ?? data?['started_at']),
+      completedAt: _readString(
+        booking['completed_at'] ?? data?['completed_at'],
+      ),
+      partnerBalanceTransactionId: _readInt(
+        booking['partner_balance_transaction_id'] ??
+            payment['partner_balance_transaction_id'] ??
+            data?['partner_balance_transaction_id'],
+      ),
     );
   }
 
@@ -163,6 +232,15 @@ class ServiceBookingModel extends ServiceBookingEntity {
       return null;
     }
     return text;
+  }
+
+  static DateTime? _readDateTime(dynamic value) {
+    final text = _readString(value);
+    if (text == null) {
+      return null;
+    }
+
+    return DateTime.tryParse(text);
   }
 }
 

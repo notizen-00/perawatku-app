@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../../../core/helpers/currency_formatter.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/midtrans_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../map/domain/entities/navigation_route.dart';
+import '../../../map/domain/usecases/get_partner_locations_use_case.dart';
 import '../../../nurse/domain/usecases/get_nurses_use_case.dart';
 import '../../../patient_member/domain/usecases/get_patient_members_use_case.dart';
 import '../../domain/entities/service_booking_entity.dart';
+import '../../domain/usecases/cancel_service_booking_use_case.dart';
 import '../../domain/usecases/check_promo_code_use_case.dart';
+import '../../domain/usecases/confirm_service_booking_completion_use_case.dart';
 import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
@@ -26,12 +33,27 @@ class ServiceBookingDetailPage extends StatefulWidget {
 class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
   late final ServiceBookingController controller;
   late final _ServiceBookingDetailArguments arguments;
+  late final GetNavigationRouteUseCase _getNavigationRouteUseCase;
+  final MapController _trackingMapController = MapController();
+  final RxBool _isLoadingRoute = false.obs;
+  final RxList<LatLng> _routePoints = <LatLng>[].obs;
+  final RxDouble _routeDistanceMeters = 0.0.obs;
+  final RxDouble _routeDurationSeconds = 0.0.obs;
+  final RxnString _routeErrorMessage = RxnString();
+  Worker? _bookingDetailWorker;
 
   @override
   void initState() {
     super.initState();
     controller = _ensureController();
     arguments = _ServiceBookingDetailArguments.from(Get.arguments);
+    _getNavigationRouteUseCase = Get.find<GetNavigationRouteUseCase>();
+    _bookingDetailWorker = ever<ServiceBookingEntity?>(
+      controller.bookingDetail,
+      (booking) {
+        _syncTrackingRoute(booking);
+      },
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final initialBooking = arguments.booking;
@@ -40,7 +62,16 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
         controller.latestBooking.value = initialBooking;
       }
       controller.loadBookingDetail(arguments.bookingId);
+      controller.startBookingDetailPolling(arguments.bookingId);
     });
+  }
+
+  @override
+  void dispose() {
+    _bookingDetailWorker?.dispose();
+    controller.stopBookingDetailPolling();
+    _trackingMapController.dispose();
+    super.dispose();
   }
 
   ServiceBookingController _ensureController() {
@@ -55,6 +86,9 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
         createBookingUseCase: Get.find<CreateServiceBookingUseCase>(),
         getBookingUseCase: Get.find<GetServiceBookingUseCase>(),
         payBookingUseCase: Get.find<PayServiceBookingUseCase>(),
+        confirmCompletionUseCase:
+            Get.find<ConfirmServiceBookingCompletionUseCase>(),
+        cancelBookingUseCase: Get.find<CancelServiceBookingUseCase>(),
         checkPromoCodeUseCase: Get.find<CheckPromoCodeUseCase>(),
         getPatientMembersUseCase: Get.find<GetPatientMembersUseCase>(),
         midtransService: Get.find<MidtransService>(),
@@ -67,8 +101,262 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      body: Obx(() {
+        final booking = controller.bookingDetail.value ?? arguments.booking;
+        final error = controller.bookingDetailErrorMessage.value;
+
+        if (controller.isLoadingBookingDetail.value && booking == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (error != null && booking == null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: InlineError(
+                message: error,
+                onRetry: () =>
+                    controller.loadBookingDetail(arguments.bookingId),
+              ),
+            ),
+          );
+        }
+
+        if (booking == null) {
+          return const Center(child: Text('Detail booking belum tersedia.'));
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => controller.loadBookingDetail(arguments.bookingId),
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 330,
+                collapsedHeight: 86,
+                toolbarHeight: 70,
+                pinned: true,
+                stretch: true,
+                backgroundColor: isDark
+                    ? const Color(0xFF0F1F1D)
+                    : const Color(0xFFF5F7F7),
+                foregroundColor: isDark ? Colors.white : Colors.black87,
+                title: Text(
+                  booking.bookingCode,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                actions: [
+                  Obx(
+                    () => TextButton.icon(
+                      onPressed:
+                          booking.canCancelBeforePartnerFound &&
+                              !controller.isCancellingBooking.value
+                          ? () => _confirmCancelBooking(booking)
+                          : null,
+                      icon: controller.isCancellingBooking.value
+                          ? const SizedBox(
+                              width: 15,
+                              height: 15,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.close_rounded),
+                      label: const Text('Batal'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  collapseMode: CollapseMode.parallax,
+                  background: _PremiumMapPreview(
+                    booking: booking,
+                    mapController: _trackingMapController,
+                    routePoints: _routePoints,
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Transform.translate(
+                  offset: const Offset(0, -24),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    child: _PremiumBookingExperience(
+                      booking: booking,
+                      serviceName:
+                          booking.serviceName ?? arguments.serviceName ?? '-',
+                      isDark: isDark,
+                      isLoadingRoute: _isLoadingRoute,
+                      routeDistanceMeters: _routeDistanceMeters,
+                      routeDurationSeconds: _routeDurationSeconds,
+                      routeErrorMessage: _routeErrorMessage,
+                      isLivePolling: controller.isLivePollingBookingDetail,
+                      isConfirmingCompletion: controller.isConfirmingCompletion,
+                      isOpeningPayment: controller.isOpeningPayment,
+                      isLoadingBookingDetail: controller.isLoadingBookingDetail,
+                      onRefreshRoute: () => _loadTrackingRoute(booking),
+                      onRefreshDetail: () =>
+                          controller.loadBookingDetail(arguments.bookingId),
+                      onOpenDetail: () => _openOrderDetail(booking),
+                      onPay: () async {
+                        controller.latestBooking.value = booking;
+                        await controller.openLatestBookingPayment();
+                        await controller.loadBookingDetail(arguments.bookingId);
+                      },
+                      onConfirmCompletion: () => controller
+                          .confirmBookingCompletion(arguments.bookingId),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  Future<void> _confirmCancelBooking(ServiceBookingEntity booking) async {
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: const Text('Batalkan pesanan?'),
+        content: const Text(
+          'Pesanan yang belum menemukan mitra bisa dibatalkan. Lanjutkan?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Tidak'),
+          ),
+          FilledButton(
+            onPressed: () => Get.back(result: true),
+            child: const Text('Batalkan'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await controller.cancelBooking(
+        booking.id,
+        reason: 'Dibatalkan oleh pasien sebelum menemukan mitra.',
+      );
+    }
+  }
+
+  Future<void> _openOrderDetail(ServiceBookingEntity booking) async {
+    await Get.toNamed(
+      AppRoutes.serviceBookingOrderDetail,
+      arguments: {
+        'bookingId': booking.id,
+        'booking': booking,
+        'serviceName': booking.serviceName ?? arguments.serviceName,
+        'patientName': booking.patientMemberName ?? arguments.patientName,
+      },
+    );
+  }
+
+  Future<void> _syncTrackingRoute(ServiceBookingEntity? booking) async {
+    if (booking == null ||
+        !booking.isOnTheWay ||
+        !booking.hasTrackingCoordinates) {
+      _routePoints.clear();
+      _routeDistanceMeters.value = 0;
+      _routeDurationSeconds.value = 0;
+      _routeErrorMessage.value = null;
+      return;
+    }
+
+    await _loadTrackingRoute(booking);
+  }
+
+  Future<void> _loadTrackingRoute(ServiceBookingEntity booking) async {
+    if (!booking.hasTrackingCoordinates || _isLoadingRoute.value) {
+      return;
+    }
+
+    _isLoadingRoute.value = true;
+    _routeErrorMessage.value = null;
+
+    try {
+      final route = await _getNavigationRouteUseCase.execute(
+        originLatitude: booking.partnerLatitude!,
+        originLongitude: booking.partnerLongitude!,
+        destinationLatitude: booking.patientLatitude!,
+        destinationLongitude: booking.patientLongitude!,
+      );
+      _applyRoute(route, booking);
+    } catch (_) {
+      _routeErrorMessage.value = 'Rute belum bisa dimuat.';
+    } finally {
+      _isLoadingRoute.value = false;
+    }
+  }
+
+  void _applyRoute(NavigationRoute route, ServiceBookingEntity booking) {
+    _routePoints.assignAll(route.points);
+    _routeDistanceMeters.value = route.distanceMeters;
+    _routeDurationSeconds.value = route.durationSeconds;
+
+    final center = LatLng(
+      (booking.partnerLatitude! + booking.patientLatitude!) / 2,
+      (booking.partnerLongitude! + booking.patientLongitude!) / 2,
+    );
+    final zoom = _zoomForDistance(route.distanceMeters);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        _trackingMapController.move(center, zoom);
+      } catch (_) {}
+    });
+  }
+
+  double _zoomForDistance(double meters) {
+    if (meters < 1000) {
+      return 15.5;
+    }
+    if (meters < 3000) {
+      return 14;
+    }
+    if (meters < 8000) {
+      return 13;
+    }
+    return 11.5;
+  }
+}
+
+class ServiceBookingOrderDetailPage extends StatefulWidget {
+  const ServiceBookingOrderDetailPage({super.key});
+
+  @override
+  State<ServiceBookingOrderDetailPage> createState() =>
+      _ServiceBookingOrderDetailPageState();
+}
+
+class _ServiceBookingOrderDetailPageState
+    extends State<ServiceBookingOrderDetailPage> {
+  late final ServiceBookingController controller;
+  late final _ServiceBookingDetailArguments arguments;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<ServiceBookingController>();
+    arguments = _ServiceBookingDetailArguments.from(Get.arguments);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final initialBooking = arguments.booking;
+      if (initialBooking != null) {
+        controller.bookingDetail.value = initialBooking;
+        controller.latestBooking.value = initialBooking;
+      }
+      controller.loadBookingDetail(arguments.bookingId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
       appBar: AppBar(
-        title: const Text('Detail Booking'),
+        title: const Text('Detail Order'),
         actions: [
           Obx(
             () => IconButton(
@@ -100,148 +388,140 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
               padding: const EdgeInsets.all(24),
               child: InlineError(
                 message: error,
-                onRetry: () => controller.loadBookingDetail(arguments.bookingId),
+                onRetry: () =>
+                    controller.loadBookingDetail(arguments.bookingId),
               ),
             ),
           );
         }
 
         if (booking == null) {
-          return const Center(child: Text('Detail booking belum tersedia.'));
+          return const Center(child: Text('Detail order belum tersedia.'));
         }
 
-        return RefreshIndicator(
-          onRefresh: () => controller.loadBookingDetail(arguments.bookingId),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            children: [
-              _SummaryCard(
-                booking: booking,
-                serviceName:
-                    booking.serviceName ?? arguments.serviceName ?? '-',
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _DetailSection(
-                title: 'Layanan',
-                icon: Icons.medical_services_rounded,
-                rows: [
-                  _DetailRow(
-                    label: 'Nama layanan',
-                    value: booking.serviceName ?? arguments.serviceName ?? '-',
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          children: [
+            _DetailSection(
+              title: 'Detail Order',
+              icon: Icons.medical_services_rounded,
+              rows: [
+                _DetailRow(label: 'Kode booking', value: booking.bookingCode),
+                _DetailRow(label: 'ID booking', value: booking.id.toString()),
+                _DetailRow(
+                  label: 'Nama layanan',
+                  value: booking.serviceName ?? arguments.serviceName ?? '-',
+                ),
+                _DetailRow(
+                  label: 'ID layanan',
+                  value: booking.serviceId?.toString() ?? '-',
+                ),
+                _DetailRow(label: 'Status', value: booking.status),
+                _DetailRow(
+                  label: 'Jadwal',
+                  value: _formatDateTime(booking.scheduledAt),
+                ),
+                _DetailRow(
+                  label: 'Diterima',
+                  value: _formatDateTime(booking.acceptedAt),
+                ),
+                _DetailRow(
+                  label: 'Mulai jalan',
+                  value: _formatDateTime(booking.startedAt),
+                ),
+                _DetailRow(
+                  label: 'Selesai',
+                  value: _formatDateTime(booking.completedAt),
+                ),
+                _DetailRow(label: 'Catatan', value: booking.notes ?? '-'),
+              ],
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _DetailSection(
+              title: 'Pasien & Mitra',
+              icon: Icons.group_rounded,
+              rows: [
+                _DetailRow(
+                  label: 'Pasien',
+                  value:
+                      booking.patientMemberName ?? arguments.patientName ?? '-',
+                ),
+                _DetailRow(
+                  label: 'ID pasien member',
+                  value: booking.patientMemberId?.toString() ?? '-',
+                ),
+                _DetailRow(
+                  label: 'Mitra',
+                  value:
+                      booking.partnerName ??
+                      (booking.assignedPartnerUserId == null
+                          ? '-'
+                          : '#${booking.assignedPartnerUserId}'),
+                ),
+                _DetailRow(
+                  label: 'Alamat pasien',
+                  value: booking.patientAddressId == null
+                      ? '-'
+                      : '#${booking.patientAddressId}',
+                ),
+                _DetailRow(
+                  label: 'Koordinat pasien',
+                  value: _formatCoordinate(
+                    booking.patientLatitude,
+                    booking.patientLongitude,
                   ),
-                  _DetailRow(
-                    label: 'ID layanan',
-                    value: booking.serviceId?.toString() ?? '-',
+                ),
+                _DetailRow(
+                  label: 'ID mitra',
+                  value: booking.assignedPartnerUserId?.toString() ?? '-',
+                ),
+                _DetailRow(
+                  label: 'Koordinat mitra',
+                  value: _formatCoordinate(
+                    booking.partnerLatitude,
+                    booking.partnerLongitude,
                   ),
-                  _DetailRow(
-                    label: 'Jadwal',
-                    value: _formatDateTime(booking.scheduledAt),
+                ),
+              ],
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _DetailSection(
+              title: 'Pembayaran',
+              icon: Icons.payments_rounded,
+              rows: [
+                _DetailRow(
+                  label: 'Total',
+                  value: CurrencyFormatter.formatRupiahFromString(
+                    booking.totalAmount,
+                    emptyValue: '-',
                   ),
-                  _DetailRow(label: 'Catatan', value: booking.notes ?? '-'),
-                ],
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _DetailSection(
-                title: 'Pasien & Mitra',
-                icon: Icons.group_rounded,
-                rows: [
-                  _DetailRow(
-                    label: 'Pasien',
-                    value: booking.patientMemberName ??
-                        arguments.patientName ??
-                        '-',
-                  ),
-                  _DetailRow(
-                    label: 'ID pasien member',
-                    value: booking.patientMemberId?.toString() ?? '-',
-                  ),
-                  _DetailRow(
-                    label: 'Mitra',
-                    value: booking.partnerName ??
-                        (booking.assignedPartnerUserId == null
-                            ? '-'
-                            : '#${booking.assignedPartnerUserId}'),
-                  ),
-                  _DetailRow(
-                    label: 'Alamat pasien',
-                    value: booking.patientAddressId == null
-                        ? '-'
-                        : '#${booking.patientAddressId}',
-                  ),
-                ],
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _DetailSection(
-                title: 'Pembayaran',
-                icon: Icons.payments_rounded,
-                rows: [
-                  _DetailRow(
-                    label: 'Total',
-                    value: CurrencyFormatter.formatRupiahFromString(
-                      booking.totalAmount,
-                      emptyValue: '-',
-                    ),
-                  ),
-                  _DetailRow(
-                    label: 'Status bayar',
-                    value: booking.paymentStatus ?? 'pending',
-                  ),
-                  _DetailRow(
-                    label: 'Referensi',
-                    value: booking.paymentReference ?? '-',
-                  ),
-                  _DetailRow(
-                    label: 'Snap token',
-                    value: booking.snapToken == null ? '-' : 'Tersedia',
-                  ),
-                ],
-                isDark: isDark,
-              ),
-              const SizedBox(height: 12),
-              _MatchmakingSection(booking: booking, isDark: isDark),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: controller.isLoadingBookingDetail.value
-                          ? null
-                          : () =>
-                              controller.loadBookingDetail(arguments.bookingId),
-                      icon: const Icon(Icons.refresh_rounded),
-                      label: const Text('Refresh'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed:
-                          booking.isPaid || controller.isOpeningPayment.value
-                              ? null
-                              : () async {
-                                  controller.latestBooking.value = booking;
-                                  await controller.openLatestBookingPayment();
-                                  await controller.loadBookingDetail(
-                                    arguments.bookingId,
-                                  );
-                                },
-                      icon: controller.isOpeningPayment.value
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.payments_rounded),
-                      label: Text(booking.isPaid ? 'Terbayar' : 'Bayar'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+                _DetailRow(
+                  label: 'Status bayar',
+                  value: booking.paymentStatus ?? 'pending',
+                ),
+                _DetailRow(
+                  label: 'Referensi',
+                  value: booking.paymentReference ?? '-',
+                ),
+                _DetailRow(
+                  label: 'Snap token',
+                  value: booking.snapToken == null ? '-' : 'Tersedia',
+                ),
+                _DetailRow(
+                  label: 'Payout mitra',
+                  value: booking.partnerBalanceTransactionId == null
+                      ? '-'
+                      : '#${booking.partnerBalanceTransactionId}',
+                ),
+              ],
+              isDark: isDark,
+            ),
+            const SizedBox(height: 12),
+            _MatchmakingSection(booking: booking, isDark: isDark),
+          ],
         );
       }),
     );
@@ -265,71 +545,690 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
     final minute = local.minute.toString().padLeft(2, '0');
     return '$day/$month/$year $hour:$minute';
   }
+
+  String _formatCoordinate(double? latitude, double? longitude) {
+    if (latitude == null || longitude == null) {
+      return '-';
+    }
+
+    return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
+  }
 }
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
+class _PremiumBookingExperience extends StatelessWidget {
+  const _PremiumBookingExperience({
     required this.booking,
     required this.serviceName,
     required this.isDark,
+    required this.isLoadingRoute,
+    required this.routeDistanceMeters,
+    required this.routeDurationSeconds,
+    required this.routeErrorMessage,
+    required this.isLivePolling,
+    required this.isConfirmingCompletion,
+    required this.isOpeningPayment,
+    required this.isLoadingBookingDetail,
+    required this.onRefreshRoute,
+    required this.onRefreshDetail,
+    required this.onOpenDetail,
+    required this.onPay,
+    required this.onConfirmCompletion,
   });
 
   final ServiceBookingEntity booking;
   final String serviceName;
   final bool isDark;
+  final RxBool isLoadingRoute;
+  final RxDouble routeDistanceMeters;
+  final RxDouble routeDurationSeconds;
+  final RxnString routeErrorMessage;
+  final RxBool isLivePolling;
+  final RxBool isConfirmingCompletion;
+  final RxBool isOpeningPayment;
+  final RxBool isLoadingBookingDetail;
+  final VoidCallback onRefreshRoute;
+  final VoidCallback onRefreshDetail;
+  final VoidCallback onOpenDetail;
+  final VoidCallback onPay;
+  final VoidCallback onConfirmCompletion;
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = booking.isPaid ? AppColors.success : AppColors.warning;
-
     return Container(
-      padding: const EdgeInsets.all(16),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF12211F) : Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        color: isDark ? const Color(0xFF0F1F1D) : const Color(0xFFF5F7F7),
+        borderRadius: BorderRadius.circular(26),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          color: isDark ? AppColors.darkBorder : const Color(0xFFE6ECEA),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, 14),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
                 ),
-                child: const Icon(
-                  Icons.home_repair_service_rounded,
-                  color: AppColors.primary,
+                const SizedBox(height: 18),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Live Tracking',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Obx(
+                            () => Text(
+                              'Estimated arrival in ${_formatDuration(routeDurationSeconds.value)}',
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.darkMutedText
+                                    : AppColors.lightMutedText,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Obx(
+                      () => _StatusPill(
+                        label: isLivePolling.value ? 'Live' : booking.status,
+                        color: isLivePolling.value
+                            ? AppColors.success
+                            : AppColors.info,
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 18),
+                _PremiumTimeline(
+                  booking: booking,
+                  distanceMeters: routeDistanceMeters,
+                ),
+                Obx(
+                  () => routeErrorMessage.value == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(
+                            routeErrorMessage.value!,
+                            style: const TextStyle(
+                              color: AppColors.warning,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                ),
+                if (booking.isOnTheWay) ...[
+                  const SizedBox(height: 10),
+                  Obx(
+                    () => OutlinedButton.icon(
+                      onPressed: isLoadingRoute.value ? null : onRefreshRoute,
+                      icon: isLoadingRoute.value
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh_rounded),
+                      label: const Text('Update rute'),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                _PremiumPartnerCard(
+                  booking: booking,
+                  serviceName: serviceName,
+                  isConfirmingCompletion: isConfirmingCompletion,
+                  onConfirmCompletion: onConfirmCompletion,
+                ),
+                const SizedBox(height: 14),
+                _PrimaryTrackingActions(
+                  booking: booking,
+                  isOpeningPayment: isOpeningPayment,
+                  isLoadingBookingDetail: isLoadingBookingDetail,
+                  onOpenDetail: onOpenDetail,
+                  onRefreshDetail: onRefreshDetail,
+                  onPay: onPay,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatDuration(double seconds) {
+    if (seconds <= 0) {
+      return '-';
+    }
+    final minutes = (seconds / 60).ceil();
+    if (minutes < 60) {
+      return '$minutes mins';
+    }
+    final hours = minutes ~/ 60;
+    final rest = minutes % 60;
+    return rest == 0 ? '$hours hr' : '$hours hr $rest mins';
+  }
+}
+
+class _PrimaryTrackingActions extends StatelessWidget {
+  const _PrimaryTrackingActions({
+    required this.booking,
+    required this.isOpeningPayment,
+    required this.isLoadingBookingDetail,
+    required this.onOpenDetail,
+    required this.onRefreshDetail,
+    required this.onPay,
+  });
+
+  final ServiceBookingEntity booking;
+  final RxBool isOpeningPayment;
+  final RxBool isLoadingBookingDetail;
+  final VoidCallback onOpenDetail;
+  final VoidCallback onRefreshDetail;
+  final VoidCallback onPay;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: onOpenDetail,
+              icon: const Icon(Icons.receipt_long_rounded),
+              label: const Text('Detail'),
+            ),
+          ),
+          const SizedBox(width: 10),
+          IconButton.filledTonal(
+            onPressed: isLoadingBookingDetail.value ? null : onRefreshDetail,
+            icon: isLoadingBookingDetail.value
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_rounded),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: booking.isPaid || isOpeningPayment.value
+                  ? null
+                  : onPay,
+              icon: isOpeningPayment.value
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.payments_rounded),
+              label: Text(booking.isPaid ? 'Terbayar' : 'Bayar'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PremiumMapPreview extends StatelessWidget {
+  const _PremiumMapPreview({
+    required this.booking,
+    required this.mapController,
+    required this.routePoints,
+  });
+
+  final ServiceBookingEntity booking;
+  final MapController mapController;
+  final RxList<LatLng> routePoints;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!booking.hasTrackingCoordinates) {
+      return SizedBox.expand(
+        child: Container(
+          color: const Color(0xFFDDEBE8),
+          child: const Center(
+            child: Icon(Icons.map_rounded, color: AppColors.primary, size: 42),
+          ),
+        ),
+      );
+    }
+
+    final partnerPoint = LatLng(
+      booking.partnerLatitude!,
+      booking.partnerLongitude!,
+    );
+    final patientPoint = LatLng(
+      booking.patientLatitude!,
+      booking.patientLongitude!,
+    );
+    final center = LatLng(
+      (partnerPoint.latitude + patientPoint.latitude) / 2,
+      (partnerPoint.longitude + patientPoint.longitude) / 2,
+    );
+
+    return SizedBox.expand(
+      child: Obx(
+        () => FlutterMap(
+          mapController: mapController,
+          options: MapOptions(
+            initialCenter: center,
+            initialZoom: 13,
+            interactionOptions: const InteractionOptions(
+              flags:
+                  InteractiveFlag.drag |
+                  InteractiveFlag.pinchZoom |
+                  InteractiveFlag.doubleTapZoom,
+            ),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.medic.patient.app',
+              maxZoom: 19,
+            ),
+            if (routePoints.length >= 2)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: routePoints.toList(),
+                    strokeWidth: 5,
+                    color: AppColors.primary,
+                    borderStrokeWidth: 2,
+                    borderColor: Colors.white,
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
+            MarkerLayer(
+              markers: [
+                Marker(
+                  point: partnerPoint,
+                  width: 44,
+                  height: 44,
+                  child: const _MapPin(
+                    icon: Icons.two_wheeler_rounded,
+                    color: AppColors.primary,
+                  ),
+                ),
+                Marker(
+                  point: patientPoint,
+                  width: 44,
+                  height: 44,
+                  child: const _MapPin(
+                    icon: Icons.home_rounded,
+                    color: AppColors.info,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PremiumTimeline extends StatelessWidget {
+  const _PremiumTimeline({required this.booking, required this.distanceMeters});
+
+  final ServiceBookingEntity booking;
+  final RxDouble distanceMeters;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = booking.status.toLowerCase().trim();
+    final steps = [
+      _TimelineData(
+        title: 'Booking Pending',
+        subtitle: 'Request received',
+        time: booking.scheduledAt,
+        completed: _statusRank(status) >= 0,
+      ),
+      _TimelineData(
+        title: 'Booking Confirmed',
+        subtitle: booking.partnerName == null
+            ? 'Waiting for partner acceptance'
+            : '${booking.partnerName} accepted',
+        time: booking.acceptedAt,
+        completed: _statusRank(status) >= 1,
+      ),
+      _TimelineData(
+        title: 'On The Way',
+        subtitle: 'Traveling to your location',
+        time: booking.startedAt,
+        completed: _statusRank(status) >= 2,
+        active: status == 'on_the_way',
+      ),
+      _TimelineData(
+        title: 'Arrived',
+        subtitle: booking.completedAt == null
+            ? 'Expected after partner arrives'
+            : 'Service completed',
+        time: booking.completedAt,
+        completed: _statusRank(status) >= 3,
+        active: booking.needsPatientCompletionConfirmation,
+      ),
+    ];
+
+    return Column(
+      children: [
+        for (var index = 0; index < steps.length; index++)
+          _TimelineItem(
+            data: steps[index],
+            isLast: index == steps.length - 1,
+            distanceMeters: distanceMeters,
+          ),
+      ],
+    );
+  }
+
+  static int _statusRank(String status) {
+    switch (status) {
+      case 'confirmed':
+      case 'scheduled':
+        return 1;
+      case 'on_the_way':
+        return 2;
+      case 'completed':
+        return 3;
+      case 'cancelled':
+        return -1;
+      case 'pending':
+      default:
+        return 0;
+    }
+  }
+}
+
+class _TimelineData {
+  const _TimelineData({
+    required this.title,
+    required this.subtitle,
+    required this.completed,
+    this.time,
+    this.active = false,
+  });
+
+  final String title;
+  final String subtitle;
+  final String? time;
+  final bool completed;
+  final bool active;
+}
+
+class _TimelineItem extends StatelessWidget {
+  const _TimelineItem({
+    required this.data,
+    required this.isLast,
+    required this.distanceMeters,
+  });
+
+  final _TimelineData data;
+  final bool isLast;
+  final RxDouble distanceMeters;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = data.active
+        ? AppColors.primary
+        : data.completed
+        ? const Color(0xFF69D9C4)
+        : const Color(0xFFD8E2DF);
+    final textColor = data.active ? AppColors.primary : null;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: Icon(
+                data.completed ? Icons.check_rounded : Icons.circle,
+                color: Colors.white,
+                size: data.active ? 11 : 15,
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: data.active ? 86 : 64,
+                color: const Color(0xFFD8E2DF),
+              ),
+          ],
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data.title,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_formatTime(data.time)} - ${data.subtitle}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                if (data.active) ...[
+                  const SizedBox(height: 10),
+                  Obx(
+                    () => Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _SoftInfoPill(
+                          icon: Icons.location_on_rounded,
+                          label: _formatDistance(distanceMeters.value),
+                        ),
+                        const _SoftInfoPill(
+                          icon: Icons.traffic_rounded,
+                          label: 'Light traffic',
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _formatTime(String? raw) {
+    if (raw == null || raw.trim().isEmpty) {
+      return '--:--';
+    }
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) {
+      return raw;
+    }
+    final local = parsed.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  static String _formatDistance(double meters) {
+    if (meters <= 0) {
+      return 'Calculating';
+    }
+    if (meters < 1000) {
+      return '${meters.toStringAsFixed(0)} m away';
+    }
+    return '${(meters / 1000).toStringAsFixed(1)} km away';
+  }
+}
+
+class _SoftInfoPill extends StatelessWidget {
+  const _SoftInfoPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFDDF7EE),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: AppColors.primary, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PremiumPartnerCard extends StatelessWidget {
+  const _PremiumPartnerCard({
+    required this.booking,
+    required this.serviceName,
+    required this.isConfirmingCompletion,
+    required this.onConfirmCompletion,
+  });
+
+  final ServiceBookingEntity booking;
+  final String serviceName;
+  final RxBool isConfirmingCompletion;
+  final VoidCallback onConfirmCompletion;
+
+  @override
+  Widget build(BuildContext context) {
+    final partnerName =
+        booking.partnerName ??
+        (booking.assignedPartnerUserId == null
+            ? 'Mitra belum ditentukan'
+            : 'Mitra #${booking.assignedPartnerUserId}');
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundColor: const Color(0xFFE1F4EF),
+                    child: Text(
+                      _initials(partnerName),
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    right: -2,
+                    bottom: -2,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.verified_rounded,
+                        color: Colors.white,
+                        size: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      booking.bookingCode,
+                      partnerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 17,
+                        fontSize: 18,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       serviceName,
-                      style: TextStyle(
-                        color: isDark
-                            ? AppColors.darkMutedText
-                            : AppColors.lightMutedText,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
@@ -337,31 +1236,90 @@ class _SummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
             children: [
-              _StatusPill(label: booking.status, color: AppColors.info),
-              _StatusPill(
-                label: booking.paymentStatus ?? 'pending',
-                color: statusColor,
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  label: const Text('Chat'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.call_rounded),
+                  label: const Text('Call'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton.filledTonal(
+                onPressed: null,
+                icon: const Icon(Icons.more_horiz_rounded),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            CurrencyFormatter.formatRupiahFromString(
-              booking.totalAmount,
-              emptyValue: '-',
+          if (booking.needsPatientCompletionConfirmation) ...[
+            const SizedBox(height: 12),
+            Obx(
+              () => SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: isConfirmingCompletion.value
+                      ? null
+                      : onConfirmCompletion,
+                  icon: isConfirmingCompletion.value
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.verified_rounded),
+                  label: const Text('Konfirmasi selesai'),
+                ),
+              ),
             ),
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) {
+      return 'M';
+    }
+    if (parts.length == 1) {
+      return parts.first.characters.first.toUpperCase();
+    }
+    return '${parts.first.characters.first}${parts.last.characters.first}'
+        .toUpperCase();
+  }
+}
+
+class _MapPin extends StatelessWidget {
+  const _MapPin({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
+      child: Icon(icon, color: color, size: 24),
     );
   }
 }
@@ -546,18 +1504,15 @@ class _ServiceBookingDetailArguments {
           ? value['booking'] as ServiceBookingEntity
           : null;
       return _ServiceBookingDetailArguments(
-        bookingId: _readInt(value['bookingId'] ?? value['id']) ??
-            booking?.id ??
-            0,
+        bookingId:
+            _readInt(value['bookingId'] ?? value['id']) ?? booking?.id ?? 0,
         booking: booking,
         serviceName: value['serviceName']?.toString(),
         patientName: value['patientName']?.toString(),
       );
     }
 
-    return _ServiceBookingDetailArguments(
-      bookingId: _readInt(value) ?? 0,
-    );
+    return _ServiceBookingDetailArguments(bookingId: _readInt(value) ?? 0);
   }
 
   static int? _readInt(dynamic value) {

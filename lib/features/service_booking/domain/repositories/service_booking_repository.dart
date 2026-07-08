@@ -26,4 +26,11 @@ abstract class ServiceBookingRepository {
   Future<ServiceBookingEntity> getBooking(int bookingId);
 
   Future<ServiceBookingEntity> payBooking(int bookingId, {String? notes});
+
+  Future<ServiceBookingEntity> confirmCompletion(
+    int bookingId, {
+    String? notes,
+  });
+
+  Future<ServiceBookingEntity> cancelBooking(int bookingId, {String? reason});
 }

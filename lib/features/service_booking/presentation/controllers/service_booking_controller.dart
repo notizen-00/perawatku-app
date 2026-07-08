@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:midtrans_sdk/midtrans_sdk.dart';
@@ -13,7 +15,9 @@ import '../../../patient_member/domain/entities/patient_member_entity.dart';
 import '../../../patient_member/domain/usecases/get_patient_members_use_case.dart';
 import '../../domain/entities/service_booking_entity.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
+import '../../domain/usecases/cancel_service_booking_use_case.dart';
 import '../../domain/usecases/check_promo_code_use_case.dart';
+import '../../domain/usecases/confirm_service_booking_completion_use_case.dart';
 import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
@@ -26,6 +30,8 @@ class ServiceBookingController extends GetxController {
     required CreateServiceBookingUseCase createBookingUseCase,
     required GetServiceBookingUseCase getBookingUseCase,
     required PayServiceBookingUseCase payBookingUseCase,
+    required ConfirmServiceBookingCompletionUseCase confirmCompletionUseCase,
+    required CancelServiceBookingUseCase cancelBookingUseCase,
     required CheckPromoCodeUseCase checkPromoCodeUseCase,
     required GetPatientMembersUseCase getPatientMembersUseCase,
     required MidtransService midtransService,
@@ -34,6 +40,8 @@ class ServiceBookingController extends GetxController {
        _createBookingUseCase = createBookingUseCase,
        _getBookingUseCase = getBookingUseCase,
        _payBookingUseCase = payBookingUseCase,
+       _confirmCompletionUseCase = confirmCompletionUseCase,
+       _cancelBookingUseCase = cancelBookingUseCase,
        _checkPromoCodeUseCase = checkPromoCodeUseCase,
        _getPatientMembersUseCase = getPatientMembersUseCase,
        _midtransService = midtransService;
@@ -43,6 +51,8 @@ class ServiceBookingController extends GetxController {
   final CreateServiceBookingUseCase _createBookingUseCase;
   final GetServiceBookingUseCase _getBookingUseCase;
   final PayServiceBookingUseCase _payBookingUseCase;
+  final ConfirmServiceBookingCompletionUseCase _confirmCompletionUseCase;
+  final CancelServiceBookingUseCase _cancelBookingUseCase;
   final CheckPromoCodeUseCase _checkPromoCodeUseCase;
   final GetPatientMembersUseCase _getPatientMembersUseCase;
   final MidtransService _midtransService;
@@ -62,6 +72,9 @@ class ServiceBookingController extends GetxController {
   final RxBool isLoadingBookingDetail = false.obs;
   final RxBool isRefreshingBooking = false.obs;
   final RxBool isOpeningPayment = false.obs;
+  final RxBool isConfirmingCompletion = false.obs;
+  final RxBool isCancellingBooking = false.obs;
+  final RxBool isLivePollingBookingDetail = false.obs;
   final RxBool isCheckingPromo = false.obs;
   final RxnString errorMessage = RxnString();
   final RxnString serviceErrorMessage = RxnString();
@@ -84,6 +97,7 @@ class ServiceBookingController extends GetxController {
   int _categoryCatalogRequestId = 0;
   int _categoryServicesRequestId = 0;
   bool _isRefreshingServiceCatalog = false;
+  Timer? _bookingDetailPollingTimer;
   final Map<String, List<ServiceBookingServiceEntity>> _servicesByCategoryKey =
       {};
 
@@ -106,6 +120,7 @@ class ServiceBookingController extends GetxController {
     scheduledAtController.dispose();
     promoCodeController.dispose();
     _midtransService.removeTransactionFinishedCallback();
+    stopBookingDetailPolling();
     super.onClose();
   }
 
@@ -210,7 +225,8 @@ class ServiceBookingController extends GetxController {
         'rawServices=${result.length} categories=${categories.length}',
       );
 
-      final canKeepSelectedCategory = keepSelectedCategory &&
+      final canKeepSelectedCategory =
+          keepSelectedCategory &&
           selectedKey != null &&
           categories.any((category) => category.key == selectedKey);
 
@@ -320,8 +336,8 @@ class ServiceBookingController extends GetxController {
       selectedService.value = selectFirstService
           ? (result.isEmpty ? null : result.first)
           : currentService.isEmpty
-              ? null
-              : currentService.first;
+          ? null
+          : currentService.first;
       services.assignAll(result);
       if (serviceCategoryOptions.isEmpty) {
         serviceCategoryOptions.assignAll(_buildServiceCategoryOptions(result));
@@ -528,10 +544,10 @@ class ServiceBookingController extends GetxController {
       selectedPatientMember.value = currentMember.isNotEmpty
           ? currentMember.first
           : primary.isNotEmpty
-              ? primary.first
-              : result.isEmpty
-                  ? null
-                  : result.first;
+          ? primary.first
+          : result.isEmpty
+          ? null
+          : result.first;
       await _reloadNursesForSelectedMember();
     } on AppException catch (error) {
       patientMembers.clear();
@@ -605,7 +621,9 @@ class ServiceBookingController extends GetxController {
   }
 
   NurseEntity? get nearestNurse {
-    final available = nurses.where((nurse) => nurse.distanceKm != null).toList();
+    final available = nurses
+        .where((nurse) => nurse.distanceKm != null)
+        .toList();
     if (available.isEmpty) {
       return nurses.isEmpty ? null : nurses.first;
     }
@@ -814,6 +832,115 @@ class ServiceBookingController extends GetxController {
       bookingDetailErrorMessage.value = 'Detail booking belum bisa dimuat.';
     } finally {
       isLoadingBookingDetail.value = false;
+    }
+  }
+
+  void startBookingDetailPolling(int bookingId) {
+    if (bookingId <= 0) {
+      return;
+    }
+
+    isLivePollingBookingDetail.value = true;
+    _bookingDetailPollingTimer?.cancel();
+    _bookingDetailPollingTimer = Timer.periodic(const Duration(seconds: 12), (
+      _,
+    ) async {
+      final current = bookingDetail.value;
+      if (current != null &&
+          ((current.isCompleted &&
+                  !current.needsPatientCompletionConfirmation) ||
+              current.status.toLowerCase().trim() == 'cancelled')) {
+        stopBookingDetailPolling();
+        return;
+      }
+
+      await loadBookingDetailSilently(bookingId);
+    });
+  }
+
+  void stopBookingDetailPolling() {
+    _bookingDetailPollingTimer?.cancel();
+    _bookingDetailPollingTimer = null;
+    isLivePollingBookingDetail.value = false;
+  }
+
+  Future<void> loadBookingDetailSilently(int bookingId) async {
+    if (bookingId <= 0 || isLoadingBookingDetail.value) {
+      return;
+    }
+
+    try {
+      final booking = await _getBookingUseCase(bookingId);
+      bookingDetail.value = booking;
+      latestBooking.value = booking;
+      _refreshActivities();
+    } catch (_) {
+      // Polling realtime tidak perlu mengganggu UI dengan snackbar.
+    }
+  }
+
+  Future<void> confirmBookingCompletion(int bookingId, {String? notes}) async {
+    if (bookingId <= 0) {
+      AppSnackbar.error('Booking tidak valid', 'Detail booking tidak lengkap.');
+      return;
+    }
+
+    isConfirmingCompletion.value = true;
+
+    try {
+      final booking = await _confirmCompletionUseCase(bookingId, notes: notes);
+      bookingDetail.value = booking;
+      latestBooking.value = booking;
+      _refreshActivities();
+      AppSnackbar.success(
+        'Layanan dikonfirmasi',
+        'Saldo layanan sudah diproses ke mitra.',
+      );
+    } on AppException catch (error) {
+      AppSnackbar.error('Konfirmasi gagal', error.message);
+    } catch (_) {
+      AppSnackbar.error(
+        'Konfirmasi gagal',
+        'Status selesai belum bisa dikonfirmasi saat ini.',
+      );
+    } finally {
+      isConfirmingCompletion.value = false;
+    }
+  }
+
+  Future<void> cancelBooking(int bookingId, {String? reason}) async {
+    if (bookingId <= 0) {
+      AppSnackbar.error('Booking tidak valid', 'Detail booking tidak lengkap.');
+      return;
+    }
+
+    final booking = bookingDetail.value ?? latestBooking.value;
+    if (booking != null && !booking.canCancelBeforePartnerFound) {
+      AppSnackbar.info(
+        'Tidak bisa dibatalkan',
+        'Booking sudah menemukan mitra atau sedang berjalan.',
+      );
+      return;
+    }
+
+    isCancellingBooking.value = true;
+
+    try {
+      final cancelled = await _cancelBookingUseCase(bookingId, reason: reason);
+      bookingDetail.value = cancelled;
+      latestBooking.value = cancelled;
+      stopBookingDetailPolling();
+      _refreshActivities();
+      AppSnackbar.success('Booking dibatalkan', 'Pesanan berhasil dibatalkan.');
+    } on AppException catch (error) {
+      AppSnackbar.error('Batal gagal', error.message);
+    } catch (_) {
+      AppSnackbar.error(
+        'Batal gagal',
+        'Endpoint pembatalan booking belum tersedia atau sedang bermasalah.',
+      );
+    } finally {
+      isCancellingBooking.value = false;
     }
   }
 

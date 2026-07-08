@@ -143,7 +143,7 @@ POST /api/shared/logout
 
 ## Endpoint Pasien
 
-Semua endpoint di bawah ini memakai `Authorization: Bearer {token}`.
+Semua endpoint di bawah ini memakai `Authorization: Bearer {token}` dari akun pasien. Route `/api/patient/*` dilindungi middleware role pasien, sehingga token mitra tidak dapat memakai endpoint pasien.
 
 ### Dokter, Perawat, Apotik
 
@@ -466,19 +466,18 @@ Body minimal:
 
 Field request `POST /api/patient/service-bookings`:
 
-| Field                | Required | Type     | Rule/Catatan                                                                      |
-| -------------------- | -------- | -------- | --------------------------------------------------------------------------------- |
-| `service_id`         | Ya       | integer  | harus ada di `services`                                                           |
-| `patient_member_id`  | Tidak    | integer  | harus milik akun pasien login; profil pasien keluarga yang menerima layanan       |
-| `patient_address_id` | Tidak    | integer  | harus ada di `patient_addresses`; wajib secara bisnis untuk layanan homecare      |
-| `booking_type`       | Tidak    | enum     | `scheduled` untuk sekali jalan, `daily` untuk layanan harian; default `scheduled` |
-| `scheduled_at`       | Tidak    | datetime | format `YYYY-MM-DD HH:mm:ss`; wajib setelah waktu sekarang jika dikirim           |
-| `schedule_start_at`  | Tidak    | datetime | wajib untuk `booking_type=daily` jika `scheduled_at` tidak dikirim                |
-| `schedule_end_at`    | Tidak    | datetime | tanggal selesai `daily`; harus >= `schedule_start_at`                             |
-| `duration_days`      | Tidak    | integer  | 1-30; dipakai untuk `daily` jika `schedule_end_at` tidak dikirim                  |
-| `notes`              | Tidak    | string   | catatan pasien; max 1000 di endpoint alternatif                                   |
-| `promo_code`         | Tidak    | string   | dipakai endpoint alternatif service booking                                       |
-| `patient_user_id`    | Tidak    | integer  | hanya didukung endpoint umum; normalnya tidak perlu dikirim karena memakai token  |
+| Field                | Required | Type     | Rule/Catatan                                                                                         |
+| -------------------- | -------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `service_id`         | Ya       | integer  | harus ada di `services`                                                                              |
+| `patient_member_id`  | Ya       | integer  | harus milik akun pasien login; profil pasien keluarga yang menerima layanan                          |
+| `patient_address_id` | Tidak    | integer  | harus ada di `patient_addresses`; jika tidak dikirim backend memakai alamat dari `patient_member_id` |
+| `booking_type`       | Tidak    | enum     | `scheduled` untuk sekali jalan, `daily` untuk layanan harian; default `scheduled`                    |
+| `scheduled_at`       | Tidak    | datetime | format `YYYY-MM-DD HH:mm:ss`; wajib setelah waktu sekarang jika dikirim                              |
+| `schedule_start_at`  | Tidak    | datetime | wajib untuk `booking_type=daily` jika `scheduled_at` tidak dikirim                                   |
+| `schedule_end_at`    | Tidak    | datetime | tanggal selesai `daily`; harus >= `schedule_start_at`                                                |
+| `duration_days`      | Tidak    | integer  | 1-30; dipakai untuk `daily` jika `schedule_end_at` tidak dikirim                                     |
+| `notes`              | Tidak    | string   | catatan pasien; max 1000                                                                             |
+| `promo_code`         | Tidak    | string   | kode promo jika dipakai                                                                              |
 
 Body dengan jadwal:
 
@@ -541,7 +540,7 @@ Response penting:
 ```json
 {
   "success": true,
-  "message": "Service booking berhasil dibuat. Lanjutkan pembayaran agar sistem mencarikan mitra.",
+  "message": "Service booking berhasil dibuat dan dikirim ke mitra. Lanjutkan pembayaran setelah mitra menerima pesanan.",
   "data": {
     "booking": {
       "id": 25,
@@ -549,8 +548,8 @@ Response penting:
       "service_id": 1,
       "patient_user_id": 7,
       "patient_member_id": 2,
-      "assigned_partner_user_id": null,
-      "patient_address_id": 10,
+      "assigned_partner_user_id": 12,
+      "patient_address_id": null,
       "booking_type": "scheduled",
       "status": "pending",
       "duration_days": 1,
@@ -570,8 +569,14 @@ Response penting:
       "total_amount": 100000,
       "duration_days": 1
     },
-    "matchmaking": null,
-    "matchmaking_status": "waiting_payment"
+    "matchmaking": {
+      "partner_service_id": 4,
+      "partner_user_id": 12,
+      "distance_km": 2.35,
+      "match_score": 82.4,
+      "quality_score": 90
+    },
+    "matchmaking_status": "waiting_partner_acceptance"
   }
 }
 ```
@@ -579,10 +584,10 @@ Response penting:
 Catatan alur terbaru:
 
 ```text
-Pasien memilih service -> booking dibuat pending -> pasien bayar -> backend matchmaking setelah payment paid -> mitra menerima event realtime
+Pasien memilih service -> booking dibuat pending -> backend memilih mitra -> mitra menerima event realtime -> mitra accept -> pasien bayar -> mitra bisa berangkat/menyelesaikan layanan
 ```
 
-`assigned_partner_user_id` masih `null` saat booking baru dibuat. Setelah pembayaran berhasil, backend akan mencari mitra yang memenuhi syarat dan mengisi `assigned_partner_user_id`.
+`assigned_partner_user_id` sudah terisi saat booking berhasil dibuat jika backend menemukan mitra yang memenuhi syarat. Jika tidak ada mitra yang cocok, backend akan mengembalikan error validasi.
 
 List booking pasien:
 
@@ -648,45 +653,42 @@ Contoh response pembayaran:
 }
 ```
 
-Mitra baru bisa menerima/memproses booking jika `payment.status` sudah `paid`.
+Mitra dapat menerima booking saat status masih `pending` atau `scheduled`. Untuk aksi operasional berikutnya seperti berangkat, menambah catatan penanganan, atau menyelesaikan layanan, pembayaran harus sudah `paid`.
 
-Update status booking:
+Konfirmasi layanan selesai:
 
 ```http
-PATCH /api/patient/service-bookings/{serviceBooking}/status
+PATCH /api/patient/service-bookings/{serviceBooking}/confirm-completion
 ```
 
-Body:
+Body opsional:
 
 ```json
 {
-  "status": "cancelled",
-  "notes": "Pasien membatalkan pesanan"
+  "notes": "Layanan sudah selesai dan sesuai."
 }
 ```
 
-Status yang tersedia:
+Endpoint ini hanya dapat dipakai pasien pemilik booking. Syaratnya booking sudah ditugaskan ke mitra, status booking `confirmed`, `scheduled`, `on_the_way`, atau `completed`, dan `payment.status = paid`. Saat berhasil, backend menandai booking `completed`, membuat histori konfirmasi pasien, dan mengirim saldo layanan ke wallet mitra. Endpoint aman dipanggil ulang karena payout tidak akan dibuat dua kali jika `partner_balance_transaction_id` sudah ada.
+
+Status booking yang muncul di response:
 
 ```text
 pending, confirmed, scheduled, on_the_way, completed, cancelled
 ```
 
+Endpoint update status booking tidak tersedia di aplikasi pasien. Perubahan status layanan dilakukan oleh endpoint mitra:
+
+```http
+PATCH /api/mitra/service-bookings/{serviceBooking}/status
+```
+
 Query `GET /api/patient/service-bookings`:
 
-| Query                      | Required | Type    | Rule/Catatan                                                                |
-| -------------------------- | -------- | ------- | --------------------------------------------------------------------------- |
-| `status`                   | Tidak    | enum    | `pending`, `confirmed`, `scheduled`, `on_the_way`, `completed`, `cancelled` |
-| `service_id`               | Tidak    | integer | didukung endpoint umum                                                      |
-| `assigned_partner_user_id` | Tidak    | integer | didukung endpoint umum                                                      |
-| `per_page`                 | Tidak    | integer | 1-100 atau default 20 tergantung endpoint yang match                        |
-
-Field `PATCH /api/patient/service-bookings/{serviceBooking}/status`:
-
-| Field          | Required | Type     | Rule/Catatan                                                                |
-| -------------- | -------- | -------- | --------------------------------------------------------------------------- |
-| `status`       | Ya       | enum     | `pending`, `confirmed`, `scheduled`, `on_the_way`, `completed`, `cancelled` |
-| `scheduled_at` | Tidak    | datetime | update jadwal                                                               |
-| `notes`        | Tidak    | string   | catatan status                                                              |
+| Query      | Required | Type    | Rule/Catatan                                                                |
+| ---------- | -------- | ------- | --------------------------------------------------------------------------- |
+| `status`   | Tidak    | enum    | `pending`, `confirmed`, `scheduled`, `on_the_way`, `completed`, `cancelled` |
+| `per_page` | Tidak    | integer | default 20                                                                  |
 
 ### Promo Code
 
@@ -1272,7 +1274,7 @@ Event:
 service-booking.matched
 ```
 
-Saat pasien membuat booking, backend belum mengirim event ini. Event baru dikirim setelah pembayaran booking menjadi `paid` dan backend berhasil memilih mitra.
+Saat pasien membuat booking, backend memilih mitra dan mengirim event ini ke aplikasi mitra yang terpilih. Pasien cukup memantau detail booking dan notifikasi user sendiri.
 
 ## Referensi Field Model
 
@@ -1562,13 +1564,14 @@ Bagian ini adalah kamus field yang umum muncul di response API. Field relasi sep
 7. Tampilkan form alamat jika `requires_address=true`.
 8. Tampilkan form jadwal jika `requires_schedule=true`.
 9. Buat booking via `POST /api/patient/service-bookings`.
-10. Tampilkan status `Menunggu pembayaran`; response awal punya `assigned_partner_user_id=null` dan `matchmaking_status=waiting_payment`.
+10. Tampilkan status `Menunggu konfirmasi mitra`; response awal punya `assigned_partner_user_id` dan `matchmaking_status=waiting_partner_acceptance`.
 11. Bayar booking via `PATCH /api/patient/service-bookings/{id}/pay`.
-12. Setelah pembayaran berhasil, polling/detail booking atau tunggu notifikasi status untuk melihat mitra terpilih.
-13. Subscribe ke `private-user.{userId}.notifications` untuk menerima notifikasi realtime.
-14. Untuk chat konsultasi, subscribe ke `private-consultation.{consultationId}`.
-15. Saat mengirim pesan konsultasi, panggil `POST /api/patient/consultations/{consultation}/messages`; penerima akan dapat event `chat.message.created`.
-16. Panggil `GET /api/shared/notifications/unread-count` untuk badge jumlah notifikasi.
+12. Setelah layanan selesai di lapangan, pasien konfirmasi via `PATCH /api/patient/service-bookings/{id}/confirm-completion`; wallet mitra otomatis dikreditkan jika belum pernah dibayarkan.
+13. Setelah mitra menerima dan pembayaran berhasil, polling/detail booking atau tunggu notifikasi status untuk melihat perjalanan layanan.
+14. Subscribe ke `private-user.{userId}.notifications` untuk menerima notifikasi realtime.
+15. Untuk chat konsultasi, subscribe ke `private-consultation.{consultationId}`.
+16. Saat mengirim pesan konsultasi, panggil `POST /api/patient/consultations/{consultation}/messages`; penerima akan dapat event `chat.message.created`.
+17. Panggil `GET /api/shared/notifications/unread-count` untuk badge jumlah notifikasi.
 
 ## Debug WebSocket
 

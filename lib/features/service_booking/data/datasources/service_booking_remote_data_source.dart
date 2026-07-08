@@ -29,6 +29,10 @@ abstract class ServiceBookingRemoteDataSource {
   Future<ServiceBookingModel> getBooking(int bookingId);
 
   Future<ServiceBookingModel> payBooking(int bookingId, {String? notes});
+
+  Future<ServiceBookingModel> confirmCompletion(int bookingId, {String? notes});
+
+  Future<ServiceBookingModel> cancelBooking(int bookingId, {String? reason});
 }
 
 class ServiceBookingRemoteDataSourceImpl
@@ -95,10 +99,7 @@ class ServiceBookingRemoteDataSourceImpl
   }) {
     return _apiClient.post(
       AppEndpoints.patientServiceBookingCheckPromoCode,
-      data: <String, dynamic>{
-        'code': code.trim(),
-        'service_id': serviceId,
-      },
+      data: <String, dynamic>{'code': code.trim(), 'service_id': serviceId},
     );
   }
 
@@ -119,6 +120,40 @@ class ServiceBookingRemoteDataSourceImpl
       data: <String, dynamic>{
         if (trimmedNotes != null && trimmedNotes.isNotEmpty)
           'notes': trimmedNotes,
+      },
+    );
+
+    return ServiceBookingModel.fromJson(response);
+  }
+
+  @override
+  Future<ServiceBookingModel> confirmCompletion(
+    int bookingId, {
+    String? notes,
+  }) async {
+    final trimmedNotes = notes?.trim();
+    final response = await _apiClient.patch(
+      '${AppEndpoints.patientServiceBookings}/$bookingId/confirm-completion',
+      data: <String, dynamic>{
+        if (trimmedNotes != null && trimmedNotes.isNotEmpty)
+          'notes': trimmedNotes,
+      },
+    );
+
+    return ServiceBookingModel.fromJson(response);
+  }
+
+  @override
+  Future<ServiceBookingModel> cancelBooking(
+    int bookingId, {
+    String? reason,
+  }) async {
+    final trimmedReason = reason?.trim();
+    final response = await _apiClient.patch(
+      '${AppEndpoints.patientServiceBookings}/$bookingId/cancel',
+      data: <String, dynamic>{
+        if (trimmedReason != null && trimmedReason.isNotEmpty)
+          'reason': trimmedReason,
       },
     );
 

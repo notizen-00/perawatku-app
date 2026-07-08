@@ -17,6 +17,15 @@ class ServiceBookingEntity {
     required this.snapToken,
     required this.paymentReference,
     required this.matchmaking,
+    required this.patientLatitude,
+    required this.patientLongitude,
+    required this.partnerLatitude,
+    required this.partnerLongitude,
+    required this.partnerLastUpdate,
+    required this.acceptedAt,
+    required this.startedAt,
+    required this.completedAt,
+    required this.partnerBalanceTransactionId,
   });
 
   final int id;
@@ -36,6 +45,15 @@ class ServiceBookingEntity {
   final String? snapToken;
   final String? paymentReference;
   final ServiceBookingMatchmakingEntity? matchmaking;
+  final double? patientLatitude;
+  final double? patientLongitude;
+  final double? partnerLatitude;
+  final double? partnerLongitude;
+  final DateTime? partnerLastUpdate;
+  final String? acceptedAt;
+  final String? startedAt;
+  final String? completedAt;
+  final int? partnerBalanceTransactionId;
 
   bool get isPaid {
     final normalized = paymentStatus?.toLowerCase().trim() ?? '';
@@ -53,6 +71,42 @@ class ServiceBookingEntity {
         normalizedStatus == 'scheduled' ||
         normalizedStatus == 'on_the_way' ||
         normalizedStatus == 'completed';
+  }
+
+  bool get isOnTheWay => status.toLowerCase().trim() == 'on_the_way';
+
+  bool get isCompleted => status.toLowerCase().trim() == 'completed';
+
+  bool get needsPatientCompletionConfirmation {
+    return isPaid &&
+        isCompleted &&
+        assignedPartnerUserId != null &&
+        partnerBalanceTransactionId == null;
+  }
+
+  bool get canConfirmCompletion {
+    final normalizedStatus = status.toLowerCase().trim();
+    return isPaid &&
+        assignedPartnerUserId != null &&
+        (normalizedStatus == 'confirmed' ||
+            normalizedStatus == 'scheduled' ||
+            normalizedStatus == 'on_the_way' ||
+            normalizedStatus == 'completed');
+  }
+
+  bool get canCancelBeforePartnerFound {
+    final normalizedStatus = status.toLowerCase().trim();
+    return assignedPartnerUserId == null &&
+        (normalizedStatus == 'pending' ||
+            normalizedStatus == 'scheduled' ||
+            normalizedStatus == 'confirmed');
+  }
+
+  bool get hasTrackingCoordinates {
+    return patientLatitude != null &&
+        patientLongitude != null &&
+        partnerLatitude != null &&
+        partnerLongitude != null;
   }
 }
 

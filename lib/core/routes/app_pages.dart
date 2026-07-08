@@ -45,6 +45,11 @@ class AppPages {
       binding: ServiceBookingBinding(),
     ),
     GetPage(
+      name: AppRoutes.serviceBookingOrderDetail,
+      page: () => const ServiceBookingOrderDetailPage(),
+      binding: ServiceBookingBinding(),
+    ),
+    GetPage(
       name: AppRoutes.doctors,
       page: () => const DoctorPage(),
       binding: DoctorBinding(),

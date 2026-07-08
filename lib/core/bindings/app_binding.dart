@@ -22,6 +22,10 @@ import '../../features/doctor/data/repositories/doctor_repository_impl.dart';
 import '../../features/doctor/domain/repositories/doctor_repository.dart';
 import '../../features/doctor/domain/usecases/get_doctors_use_case.dart';
 import '../../features/home/controller/home_controller.dart';
+import '../../features/map/data/datasources/map_remote_data_source.dart';
+import '../../features/map/data/repositories/map_repository_impl.dart';
+import '../../features/map/domain/repositories/map_repository.dart';
+import '../../features/map/domain/usecases/get_partner_locations_use_case.dart';
 import '../../features/nurse/data/datasources/nurse_remote_data_source.dart';
 import '../../features/nurse/data/repositories/nurse_repository_impl.dart';
 import '../../features/nurse/domain/repositories/nurse_repository.dart';
@@ -41,7 +45,9 @@ import '../../features/patient_member/presentation/controllers/patient_member_co
 import '../../features/service_booking/data/datasources/service_booking_remote_data_source.dart';
 import '../../features/service_booking/data/repositories/service_booking_repository_impl.dart';
 import '../../features/service_booking/domain/repositories/service_booking_repository.dart';
+import '../../features/service_booking/domain/usecases/cancel_service_booking_use_case.dart';
 import '../../features/service_booking/domain/usecases/check_promo_code_use_case.dart';
+import '../../features/service_booking/domain/usecases/confirm_service_booking_completion_use_case.dart';
 import '../../features/service_booking/domain/usecases/create_service_booking_use_case.dart';
 import '../../features/service_booking/domain/usecases/get_service_booking_services_use_case.dart';
 import '../../features/service_booking/domain/usecases/get_service_booking_use_case.dart';
@@ -139,6 +145,27 @@ class AppBinding extends Bindings {
       fenix: true,
     );
 
+    Get.lazyPut<MapRemoteDataSource>(
+      () => MapRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<MapRepository>(
+      () =>
+          MapRepositoryImpl(remoteDataSource: Get.find<MapRemoteDataSource>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetPartnerLocationsUseCase>(
+      () => GetPartnerLocationsUseCase(Get.find<MapRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetNavigationRouteUseCase>(
+      () => GetNavigationRouteUseCase(Get.find<MapRepository>()),
+      fenix: true,
+    );
+
     Get.lazyPut<ServiceBookingRemoteDataSource>(
       () =>
           ServiceBookingRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
@@ -171,6 +198,18 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<PayServiceBookingUseCase>(
       () => PayServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<ConfirmServiceBookingCompletionUseCase>(
+      () => ConfirmServiceBookingCompletionUseCase(
+        Get.find<ServiceBookingRepository>(),
+      ),
+      fenix: true,
+    );
+
+    Get.lazyPut<CancelServiceBookingUseCase>(
+      () => CancelServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
       fenix: true,
     );
 
