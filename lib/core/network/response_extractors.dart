@@ -46,3 +46,41 @@ List<Map<String, dynamic>> extractListOfMaps(
   return const <Map<String, dynamic>>[];
 }
 
+List<Map<String, dynamic>> extractLaravelPaginatedList(dynamic json) {
+  if (json is List) {
+    return json.whereType<Map<String, dynamic>>().toList();
+  }
+
+  if (json is! Map) {
+    return const <Map<String, dynamic>>[];
+  }
+
+  final map = Map<String, dynamic>.from(json as Map);
+  final directData = map['data'];
+
+  if (directData is List) {
+    return directData.whereType<Map<String, dynamic>>().toList();
+  }
+
+  if (directData is Map) {
+    final nestedData = directData['data'];
+    if (nestedData is List) {
+      return nestedData.whereType<Map<String, dynamic>>().toList();
+    }
+  }
+
+  final services = map['services'];
+  if (services is List) {
+    return services.whereType<Map<String, dynamic>>().toList();
+  }
+
+  if (services is Map) {
+    final nestedServices = services['data'];
+    if (nestedServices is List) {
+      return nestedServices.whereType<Map<String, dynamic>>().toList();
+    }
+  }
+
+  return extractListOfMaps(json, preferredKeys: const <String>['data']);
+}
+

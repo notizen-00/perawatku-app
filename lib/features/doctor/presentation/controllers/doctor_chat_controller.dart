@@ -119,6 +119,8 @@ class DoctorChatController extends GetxController {
         consultationStatus == 'processing';
   }
 
+  bool get isReadOnlyChat => consultation.value?.isEnded ?? false;
+
   String get paymentReferenceLabel =>
       consultation.value?.orderId?.trim().isNotEmpty == true
       ? consultation.value!.orderId!
@@ -279,6 +281,14 @@ class DoctorChatController extends GetxController {
       AppSnackbar.info(
         'Pembayaran dibutuhkan',
         'Selesaikan pembayaran dulu sebelum chat dimulai.',
+      );
+      return;
+    }
+
+    if (currentConsultation.isEnded) {
+      AppSnackbar.info(
+        'Konsultasi berakhir',
+        'Percakapan ini hanya bisa dibaca karena konsultasi sudah selesai.',
       );
       return;
     }

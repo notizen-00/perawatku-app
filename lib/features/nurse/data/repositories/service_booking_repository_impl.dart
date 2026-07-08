@@ -26,13 +26,15 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
   @override
   Future<ServiceBookingEntity> createBooking({
     required int serviceId,
-    required int patientAddressId,
+    int? patientMemberId,
+    int? patientAddressId,
     String? scheduledAt,
     String? notes,
     String? promoCode,
   }) {
     return _remoteDataSource.createBooking(
       serviceId: serviceId,
+      patientMemberId: patientMemberId,
       patientAddressId: patientAddressId,
       scheduledAt: scheduledAt,
       notes: notes,
@@ -48,5 +50,13 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
   @override
   Future<ServiceBookingEntity> payBooking(int bookingId, {String? notes}) {
     return _remoteDataSource.payBooking(bookingId, notes: notes);
+  }
+
+  @override
+  Future<Map<String, dynamic>> checkPromoCode({
+    required String code,
+    required int serviceId,
+  }) {
+    return _remoteDataSource.checkPromoCode(code: code, serviceId: serviceId);
   }
 }

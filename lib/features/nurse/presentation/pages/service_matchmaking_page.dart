@@ -1,0 +1,82 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '../../../../core/services/midtrans_service.dart';
+import '../../../home/controller/home_controller.dart';
+import '../../../patient_member/domain/usecases/get_patient_members_use_case.dart';
+import '../../domain/usecases/check_promo_code_use_case.dart';
+import '../../domain/usecases/create_service_booking_use_case.dart';
+import '../../domain/usecases/get_nurses_use_case.dart';
+import '../../domain/usecases/get_service_booking_services_use_case.dart';
+import '../../domain/usecases/get_service_booking_use_case.dart';
+import '../../domain/usecases/pay_service_booking_use_case.dart';
+import '../controllers/nurse_controller.dart';
+import '../widgets/service_booking_panel.dart';
+
+class ServiceMatchmakingPage extends StatelessWidget {
+  const ServiceMatchmakingPage({super.key});
+
+  NurseController _ensureController() {
+    if (Get.isRegistered<NurseController>()) {
+      return Get.find<NurseController>();
+    }
+
+    return Get.put(
+      NurseController(
+        getNursesUseCase: Get.find<GetNursesUseCase>(),
+        getServicesUseCase: Get.find<GetServiceBookingServicesUseCase>(),
+        createBookingUseCase: Get.find<CreateServiceBookingUseCase>(),
+        getBookingUseCase: Get.find<GetServiceBookingUseCase>(),
+        payBookingUseCase: Get.find<PayServiceBookingUseCase>(),
+        checkPromoCodeUseCase: Get.find<CheckPromoCodeUseCase>(),
+        getPatientMembersUseCase: Get.find<GetPatientMembersUseCase>(),
+        midtransService: Get.find<MidtransService>(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final nurseController = _ensureController();
+    _applyRequestedService(nurseController);
+
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+        children: const [
+          Text(
+            'Matchmaking Layanan',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Pilih layanan, profil pasien, jadwal, lalu lanjutkan pembayaran agar backend mencarikan mitra.',
+          ),
+          SizedBox(height: 16),
+          ServiceBookingPanel(),
+        ],
+      ),
+    );
+  }
+
+  void _applyRequestedService(NurseController nurseController) {
+    if (!Get.isRegistered<HomeController>()) {
+      return;
+    }
+
+    final homeController = Get.find<HomeController>();
+    final serviceId = homeController.requestedMatchmakingServiceId.value;
+    if (serviceId == null || serviceId <= 0) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final selected = nurseController.selectServiceByBookingServiceId(
+        serviceId,
+      );
+      if (selected) {
+        homeController.requestedMatchmakingServiceId.value = null;
+      }
+    });
+  }
+}

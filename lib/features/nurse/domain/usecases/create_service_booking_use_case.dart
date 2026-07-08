@@ -8,13 +8,15 @@ class CreateServiceBookingUseCase {
 
   Future<ServiceBookingEntity> call({
     required int serviceId,
-    required int patientAddressId,
+    int? patientMemberId,
+    int? patientAddressId,
     String? scheduledAt,
     String? notes,
     String? promoCode,
   }) {
     return _repository.createBooking(
       serviceId: serviceId,
+      patientMemberId: patientMemberId,
       patientAddressId: patientAddressId,
       scheduledAt: scheduledAt,
       notes: notes,

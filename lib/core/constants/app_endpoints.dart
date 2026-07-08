@@ -11,6 +11,8 @@ class AppEndpoints {
   static const String patientServiceBookings = '/api/patient/service-bookings';
   static const String patientServiceBookingServices =
       '/api/patient/service-bookings/services';
+  static const String patientServiceBookingCheckPromoCode =
+      '/api/patient/service-bookings/check-promo-code';
   static const String broadcastingAuth = '/api/broadcasting/auth';
   static const String sharedNotifications = '/api/shared/notifications';
   static const String sharedNotificationUnreadCount =

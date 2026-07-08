@@ -10,10 +10,16 @@ abstract class ServiceBookingRepository {
 
   Future<ServiceBookingEntity> createBooking({
     required int serviceId,
-    required int patientAddressId,
+    int? patientMemberId,
+    int? patientAddressId,
     String? scheduledAt,
     String? notes,
     String? promoCode,
+  });
+
+  Future<Map<String, dynamic>> checkPromoCode({
+    required String code,
+    required int serviceId,
   });
 
   Future<ServiceBookingEntity> getBooking(int bookingId);

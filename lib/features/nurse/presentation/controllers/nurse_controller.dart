@@ -6,9 +6,12 @@ import '../../../../core/errors/app_exception.dart';
 import '../../../../core/helpers/app_snackbar.dart';
 import '../../../../core/services/midtrans_service.dart';
 import '../../../activity/presentation/controllers/activity_controller.dart';
+import '../../../patient_member/domain/entities/patient_member_entity.dart';
+import '../../../patient_member/domain/usecases/get_patient_members_use_case.dart';
 import '../../domain/entities/nurse_entity.dart';
 import '../../domain/entities/service_booking_entity.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
+import '../../domain/usecases/check_promo_code_use_case.dart';
 import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
@@ -22,12 +25,16 @@ class NurseController extends GetxController {
     required CreateServiceBookingUseCase createBookingUseCase,
     required GetServiceBookingUseCase getBookingUseCase,
     required PayServiceBookingUseCase payBookingUseCase,
+    required CheckPromoCodeUseCase checkPromoCodeUseCase,
+    required GetPatientMembersUseCase getPatientMembersUseCase,
     required MidtransService midtransService,
   }) : _getNursesUseCase = getNursesUseCase,
        _getServicesUseCase = getServicesUseCase,
        _createBookingUseCase = createBookingUseCase,
        _getBookingUseCase = getBookingUseCase,
        _payBookingUseCase = payBookingUseCase,
+       _checkPromoCodeUseCase = checkPromoCodeUseCase,
+       _getPatientMembersUseCase = getPatientMembersUseCase,
        _midtransService = midtransService;
 
   final GetNursesUseCase _getNursesUseCase;
@@ -35,24 +42,34 @@ class NurseController extends GetxController {
   final CreateServiceBookingUseCase _createBookingUseCase;
   final GetServiceBookingUseCase _getBookingUseCase;
   final PayServiceBookingUseCase _payBookingUseCase;
+  final CheckPromoCodeUseCase _checkPromoCodeUseCase;
+  final GetPatientMembersUseCase _getPatientMembersUseCase;
   final MidtransService _midtransService;
 
   final RxList<NurseEntity> nurses = <NurseEntity>[].obs;
   final RxList<ServiceBookingServiceEntity> services =
       <ServiceBookingServiceEntity>[].obs;
+  final RxList<PatientMemberEntity> patientMembers =
+      <PatientMemberEntity>[].obs;
   final RxBool isLoading = false.obs;
   final RxBool isLoadingServices = false.obs;
+  final RxBool isLoadingMembers = false.obs;
   final RxBool isCreatingBooking = false.obs;
   final RxBool isRefreshingBooking = false.obs;
   final RxBool isOpeningPayment = false.obs;
+  final RxBool isCheckingPromo = false.obs;
   final RxnString errorMessage = RxnString();
   final RxnString serviceErrorMessage = RxnString();
+  final RxnString memberErrorMessage = RxnString();
+  final RxnString promoStatusMessage = RxnString();
+  final RxBool isPromoValid = false.obs;
+  final RxnString selectedServiceCategoryKey = RxnString();
   final Rxn<ServiceBookingServiceEntity> selectedService =
       Rxn<ServiceBookingServiceEntity>();
+  final Rxn<PatientMemberEntity> selectedPatientMember =
+      Rxn<PatientMemberEntity>();
   final Rxn<ServiceBookingEntity> latestBooking = Rxn<ServiceBookingEntity>();
 
-  final TextEditingController patientAddressIdController =
-      TextEditingController();
   final TextEditingController notesController = TextEditingController();
   final TextEditingController scheduledAtController = TextEditingController();
   final TextEditingController promoCodeController = TextEditingController();
@@ -65,12 +82,12 @@ class NurseController extends GetxController {
     super.onInit();
     loadNurses();
     loadServices();
+    loadPatientMembers();
     _midtransService.setTransactionFinishedCallback(_handlePaymentFinished);
   }
 
   @override
   void onClose() {
-    patientAddressIdController.dispose();
     notesController.dispose();
     scheduledAtController.dispose();
     promoCodeController.dispose();
@@ -115,29 +132,34 @@ class NurseController extends GetxController {
 
   Future<void> loadServices({
     String? search,
-    String category = 'perawat_homecare',
+    String category = '',
   }) async {
     isLoadingServices.value = true;
     serviceErrorMessage.value = null;
 
     try {
       var result = await _getServicesUseCase(
-        category: category,
+        category: category.isEmpty ? null : category,
         search: search,
-        perPage: 20,
+        perPage: 100,
       );
 
       if (result.isEmpty && category.isNotEmpty) {
-        result = await _getServicesUseCase(search: search, perPage: 20);
+        result = await _getServicesUseCase(search: search, perPage: 100);
       }
 
       services.assignAll(result);
+      _syncServiceCategoryAfterLoad();
+      final filtered = filteredServices;
       final currentService = selectedService.value;
       if (result.isEmpty) {
         selectedService.value = null;
       } else if (currentService == null ||
-          !result.any((service) => service.id == currentService.id)) {
-        selectedService.value = result.first;
+          !filtered.any(
+            (service) =>
+                service.bookingServiceId == currentService.bookingServiceId,
+          )) {
+        selectedService.value = filtered.isEmpty ? null : filtered.first;
       }
     } on AppException catch (error) {
       services.clear();
@@ -151,14 +173,184 @@ class NurseController extends GetxController {
   }
 
   void selectService(ServiceBookingServiceEntity service) {
+    selectedServiceCategoryKey.value = serviceCategoryKey(service);
     selectedService.value = service;
+    promoStatusMessage.value = null;
+    isPromoValid.value = false;
+  }
+
+  bool selectServiceByBookingServiceId(int serviceId) {
+    for (final service in services) {
+      if (service.bookingServiceId == serviceId) {
+        selectService(service);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  List<ServiceCategoryOption> get serviceCategories {
+    final options = <String, ServiceCategoryOption>{};
+
+    for (final service in services) {
+      final key = serviceCategoryKey(service);
+      options.putIfAbsent(
+        key,
+        () => ServiceCategoryOption(
+          key: key,
+          id: service.categoryId,
+          name: serviceCategoryName(service),
+          icon: service.categoryIcon,
+        ),
+      );
+    }
+
+    final result = options.values.toList();
+    result.sort((first, second) => first.name.compareTo(second.name));
+    return result;
+  }
+
+  ServiceCategoryOption? get selectedServiceCategory {
+    final categories = serviceCategories;
+    if (categories.isEmpty) {
+      return null;
+    }
+
+    final selectedKey = selectedServiceCategoryKey.value;
+    for (final category in categories) {
+      if (category.key == selectedKey) {
+        return category;
+      }
+    }
+
+    return categories.first;
+  }
+
+  List<ServiceBookingServiceEntity> get filteredServices {
+    final category = selectedServiceCategory;
+    if (category == null) {
+      return const <ServiceBookingServiceEntity>[];
+    }
+
+    return services
+        .where((service) => serviceCategoryKey(service) == category.key)
+        .toList();
+  }
+
+  void selectServiceCategory(ServiceCategoryOption? category) {
+    if (category == null) {
+      return;
+    }
+
+    selectedServiceCategoryKey.value = category.key;
+    final filtered = filteredServices;
+    selectedService.value = filtered.isEmpty ? null : filtered.first;
+    promoStatusMessage.value = null;
+    isPromoValid.value = false;
+  }
+
+  Future<void> loadPatientMembers() async {
+    isLoadingMembers.value = true;
+    memberErrorMessage.value = null;
+
+    try {
+      final result = await _getPatientMembersUseCase(perPage: 100);
+      patientMembers.assignAll(result);
+
+      final primary = result.where((member) => member.isPrimary);
+      selectedPatientMember.value = primary.isNotEmpty
+          ? primary.first
+          : result.isEmpty
+              ? null
+              : result.first;
+      await _reloadNursesForSelectedMember();
+    } on AppException catch (error) {
+      patientMembers.clear();
+      selectedPatientMember.value = null;
+      memberErrorMessage.value = error.message;
+    } catch (_) {
+      patientMembers.clear();
+      selectedPatientMember.value = null;
+      memberErrorMessage.value = 'Gagal memuat profil pasien keluarga.';
+    } finally {
+      isLoadingMembers.value = false;
+    }
+  }
+
+  Future<void> selectPatientMember(PatientMemberEntity? member) async {
+    selectedPatientMember.value = member;
+    await _reloadNursesForSelectedMember();
+  }
+
+  Future<void> pickScheduledAt(DateTime date, TimeOfDay time) async {
+    final scheduledAt = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    scheduledAtController.text = _formatDateTimeForBackend(scheduledAt);
+  }
+
+  Future<void> checkPromoCode() async {
+    final service = selectedService.value;
+    final code = promoCodeController.text.trim();
+
+    if (service == null) {
+      AppSnackbar.info('Pilih layanan', 'Pilih layanan sebelum cek promo.');
+      return;
+    }
+
+    if (code.isEmpty) {
+      promoStatusMessage.value = null;
+      isPromoValid.value = false;
+      AppSnackbar.info('Kode promo kosong', 'Isi kode promo terlebih dahulu.');
+      return;
+    }
+
+    isCheckingPromo.value = true;
+    promoStatusMessage.value = null;
+    isPromoValid.value = false;
+
+    try {
+      final response = await _checkPromoCodeUseCase(
+        code: code,
+        serviceId: service.bookingServiceId,
+      );
+      final message = response['message']?.toString();
+      isPromoValid.value = true;
+      promoStatusMessage.value = message?.isNotEmpty == true
+          ? message
+          : 'Kode promo valid dan bisa dipakai.';
+      AppSnackbar.success('Promo valid', promoStatusMessage.value!);
+    } on AppException catch (error) {
+      promoStatusMessage.value = error.message;
+      AppSnackbar.error('Promo tidak valid', error.message);
+    } catch (_) {
+      promoStatusMessage.value = 'Kode promo belum bisa dicek.';
+      AppSnackbar.error('Promo tidak valid', 'Kode promo belum bisa dicek.');
+    } finally {
+      isCheckingPromo.value = false;
+    }
+  }
+
+  NurseEntity? get nearestNurse {
+    final available = nurses.where((nurse) => nurse.distanceKm != null).toList();
+    if (available.isEmpty) {
+      return nurses.isEmpty ? null : nurses.first;
+    }
+
+    available.sort((first, second) {
+      return first.distanceKm!.compareTo(second.distanceKm!);
+    });
+    return available.first;
   }
 
   Future<void> createBooking() async {
     final service = selectedService.value;
-    final patientAddressId = int.tryParse(
-      patientAddressIdController.text.trim(),
-    );
+    final patientMember = selectedPatientMember.value;
 
     if (service == null) {
       AppSnackbar.info(
@@ -168,10 +360,18 @@ class NurseController extends GetxController {
       return;
     }
 
-    if (patientAddressId == null || patientAddressId <= 0) {
+    if (service.bookingServiceId <= 0) {
+      AppSnackbar.error(
+        'Layanan tidak valid',
+        'ID layanan dari katalog backend kosong. Muat ulang katalog layanan.',
+      );
+      return;
+    }
+
+    if (patientMember == null) {
       AppSnackbar.info(
-        'Alamat dibutuhkan',
-        'Isi ID alamat pasien agar backend bisa menjalankan matchmaking jarak.',
+        'Pilih profil pasien',
+        'Pilih profil pasien keluarga yang akan menerima layanan.',
       );
       return;
     }
@@ -180,8 +380,8 @@ class NurseController extends GetxController {
 
     try {
       final booking = await _createBookingUseCase(
-        serviceId: service.id,
-        patientAddressId: patientAddressId,
+        serviceId: service.bookingServiceId,
+        patientMemberId: patientMember.id,
         scheduledAt: scheduledAtController.text,
         notes: notesController.text,
         promoCode: promoCodeController.text,
@@ -341,4 +541,69 @@ class NurseController extends GetxController {
       Get.find<ActivityController>().loadActivities();
     }
   }
+
+  Future<void> _reloadNursesForSelectedMember() {
+    final member = selectedPatientMember.value;
+    return loadNurses(
+      latitude: member?.latitude,
+      longitude: member?.longitude,
+      maxDistanceKm: member?.latitude == null || member?.longitude == null
+          ? null
+          : 25,
+    );
+  }
+
+  String _formatDateTimeForBackend(DateTime dateTime) {
+    final year = dateTime.year.toString().padLeft(4, '0');
+    final month = dateTime.month.toString().padLeft(2, '0');
+    final day = dateTime.day.toString().padLeft(2, '0');
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final second = dateTime.second.toString().padLeft(2, '0');
+    return '$year-$month-$day $hour:$minute:$second';
+  }
+
+  void _syncServiceCategoryAfterLoad() {
+    if (services.isEmpty) {
+      selectedServiceCategoryKey.value = null;
+      return;
+    }
+
+    final selectedKey = selectedServiceCategoryKey.value;
+    final stillExists = selectedKey != null &&
+        services.any((service) => serviceCategoryKey(service) == selectedKey);
+
+    if (!stillExists) {
+      selectedServiceCategoryKey.value = serviceCategoryKey(services.first);
+    }
+  }
+
+  String serviceCategoryKey(ServiceBookingServiceEntity service) {
+    final categoryId = service.categoryId;
+    if (categoryId != null && categoryId > 0) {
+      return categoryId.toString();
+    }
+
+    return serviceCategoryName(service).toLowerCase();
+  }
+
+  String serviceCategoryName(ServiceBookingServiceEntity service) {
+    final raw = service.categoryName ?? service.category ?? 'Lainnya';
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? 'Lainnya' : trimmed;
+  }
+}
+
+class ServiceCategoryOption {
+  const ServiceCategoryOption({
+    required this.key,
+    required this.id,
+    required this.name,
+    required this.icon,
+  });
+
+  final String key;
+  final int? id;
+  final String name;
+  final String? icon;
 }

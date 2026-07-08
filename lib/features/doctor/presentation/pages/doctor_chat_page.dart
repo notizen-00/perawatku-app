@@ -70,7 +70,7 @@ class DoctorChatPage extends GetView<DoctorChatController> {
           );
         }
 
-        if (!consultation.isPaid) {
+        if (!consultation.isPaid && !consultation.isEnded) {
           return _ChatStateMessage(
             title: 'Pembayaran belum selesai',
             description:
@@ -88,6 +88,7 @@ class DoctorChatPage extends GetView<DoctorChatController> {
         return Column(
           children: [
             _ChatHeader(controller: controller, consultation: consultation),
+            if (consultation.isEnded) const _ReadOnlyNotice(),
             Expanded(
               child: _MessageList(
                 doctorPhotoUrl: controller.doctorPhotoUrl,
@@ -96,7 +97,7 @@ class DoctorChatPage extends GetView<DoctorChatController> {
                 scrollController: controller.messageScrollController,
               ),
             ),
-            _Composer(controller: controller),
+            _Composer(controller: controller, readOnly: consultation.isEnded),
           ],
         );
       }),
@@ -190,13 +191,44 @@ class _ChatHeader extends StatelessWidget {
             label: controller.specializationLabel,
           ),
           _InfoPill(
-            icon: Icons.check_circle_rounded,
-            label: 'Konsultasi aktif',
-            color: AppColors.success,
+            icon: consultation.isEnded
+                ? Icons.lock_clock_rounded
+                : Icons.check_circle_rounded,
+            label: consultation.isEnded
+                ? 'Konsultasi berakhir'
+                : 'Konsultasi aktif',
+            color: consultation.isEnded
+                ? AppColors.lightMutedText
+                : AppColors.success,
           ),
           _InfoPill(
             icon: Icons.payments_rounded,
             label: controller.consultationFeeLabel,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadOnlyNotice extends StatelessWidget {
+  const _ReadOnlyNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      color: const Color(0xFFFFF7E8),
+      child: const Row(
+        children: [
+          Icon(Icons.info_rounded, color: Color(0xFFF59E0B), size: 18),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Konsultasi sudah berakhir. Chat ini hanya bisa dibaca.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -393,12 +425,36 @@ class _PaymentInfoRow extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.controller});
+  const _Composer({required this.controller, required this.readOnly});
 
   final DoctorChatController controller;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
+    if (readOnly) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: const Text(
+            'Percakapan readonly karena status konsultasi sudah berakhir.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.lightMutedText,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       top: false,
       child: Padding(

@@ -59,4 +59,16 @@ class ConsultationEntity {
         normalizedPaymentStatus == 'done' ||
         normalizedPaymentStatus == 'approved';
   }
+
+  bool get isEnded {
+    final normalizedStatus = status.toLowerCase().trim();
+
+    return normalizedStatus == 'completed' ||
+        normalizedStatus == 'done' ||
+        normalizedStatus == 'closed' ||
+        normalizedStatus == 'cancelled' ||
+        normalizedStatus == 'canceled' ||
+        normalizedStatus == 'expired' ||
+        normalizedStatus == 'failed';
+  }
 }

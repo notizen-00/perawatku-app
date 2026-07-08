@@ -25,7 +25,7 @@ class HomeDashboardContent extends StatelessWidget {
           const SizedBox(height: 16),
           const HomeBalancePanel(),
           const SizedBox(height: 18),
-          const HomeServiceGrid(),
+          HomeServiceGrid(),
           const SizedBox(height: 18),
           const HomeGreenPromoBanner(),
           const SizedBox(height: 18),

@@ -149,6 +149,29 @@ class PatientMemberController extends GetxController {
     isPrimaryForm.value = member.isPrimary;
   }
 
+  void setDateOfBirth(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    dateOfBirthController.text = '$year-$month-$day';
+  }
+
+  void setGender(String? gender) {
+    genderController.text = gender ?? '';
+  }
+
+  void setRelationship(String? relationship) {
+    relationshipController.text = relationship ?? '';
+  }
+
+  void setCoordinates({
+    required double latitude,
+    required double longitude,
+  }) {
+    latitudeController.text = latitude.toStringAsFixed(6);
+    longitudeController.text = longitude.toStringAsFixed(6);
+  }
+
   Future<bool> saveMember() async {
     final name = nameController.text.trim();
     if (name.isEmpty) {
@@ -204,10 +227,6 @@ class PatientMemberController extends GetxController {
       );
       await loadMembers();
 
-      AppSnackbar.success(
-        editingMember.value == null ? 'Profil ditambahkan' : 'Profil diperbarui',
-        'Data pasien keluarga sudah tersimpan.',
-      );
       return true;
     } on AppException catch (error) {
       AppSnackbar.error('Simpan gagal', error.message);

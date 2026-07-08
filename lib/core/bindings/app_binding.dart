@@ -28,6 +28,7 @@ import '../../features/nurse/data/repositories/nurse_repository_impl.dart';
 import '../../features/nurse/data/repositories/service_booking_repository_impl.dart';
 import '../../features/nurse/domain/repositories/nurse_repository.dart';
 import '../../features/nurse/domain/repositories/service_booking_repository.dart';
+import '../../features/nurse/domain/usecases/check_promo_code_use_case.dart';
 import '../../features/nurse/domain/usecases/create_service_booking_use_case.dart';
 import '../../features/nurse/domain/usecases/get_service_booking_services_use_case.dart';
 import '../../features/nurse/domain/usecases/get_service_booking_use_case.dart';
@@ -173,6 +174,11 @@ class AppBinding extends Bindings {
       fenix: true,
     );
 
+    Get.lazyPut<CheckPromoCodeUseCase>(
+      () => CheckPromoCodeUseCase(Get.find<ServiceBookingRepository>()),
+      fenix: true,
+    );
+
     Get.lazyPut<PatientMemberRemoteDataSource>(
       () => PatientMemberRemoteDataSourceImpl(apiClient: Get.find<ApiClient>()),
       fenix: true,
@@ -265,7 +271,13 @@ class AppBinding extends Bindings {
     );
 
     if (!Get.isRegistered<HomeController>()) {
-      Get.put(HomeController(Get.find<GetNursesUseCase>()), permanent: true);
+      Get.put(
+        HomeController(
+          getNursesUseCase: Get.find<GetNursesUseCase>(),
+          getServicesUseCase: Get.find<GetServiceBookingServicesUseCase>(),
+        ),
+        permanent: true,
+      );
     }
 
     Get.lazyPut<AuthRepository>(

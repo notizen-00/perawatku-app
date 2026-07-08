@@ -49,10 +49,7 @@ class NurseRemoteDataSourceImpl implements NurseRemoteDataSource {
       },
     );
 
-    final items = extractListOfMaps(
-      response,
-      preferredKeys: const <String>['data', 'nurses'],
-    );
+    final items = extractLaravelPaginatedList(response);
 
     return items.map(NurseModel.fromJson).toList();
   }

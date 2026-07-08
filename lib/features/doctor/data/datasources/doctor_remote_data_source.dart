@@ -45,10 +45,7 @@ class DoctorRemoteDataSourceImpl implements DoctorRemoteDataSource {
       },
     );
 
-    final items = extractListOfMaps(
-      response,
-      preferredKeys: const <String>['data', 'doctors'],
-    );
+    final items = extractLaravelPaginatedList(response);
 
     return items.map(DoctorModel.fromJson).toList();
   }

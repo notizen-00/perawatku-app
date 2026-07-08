@@ -4,19 +4,32 @@ import 'package:get/get.dart';
 
 import '../../../core/errors/app_exception.dart';
 import '../../nurse/domain/entities/nurse_entity.dart';
+import '../../nurse/domain/entities/service_booking_service_entity.dart';
+import '../../nurse/domain/usecases/get_service_booking_services_use_case.dart';
 import '../../nurse/domain/usecases/get_nurses_use_case.dart';
 
 class HomeController extends GetxController {
-  HomeController(this._getNursesUseCase);
+  HomeController({
+    required GetNursesUseCase getNursesUseCase,
+    required GetServiceBookingServicesUseCase getServicesUseCase,
+  })  : _getNursesUseCase = getNursesUseCase,
+        _getServicesUseCase = getServicesUseCase;
 
   final GetNursesUseCase _getNursesUseCase;
+  final GetServiceBookingServicesUseCase _getServicesUseCase;
 
   final RxInt selectedBottomNavIndex = 0.obs;
   final Rx<LocationBannerState> locationState =
       const LocationBannerState.loading().obs;
   final RxList<NurseEntity> nearbyNurses = <NurseEntity>[].obs;
+  final RxList<ServiceBookingServiceEntity> serviceCatalog =
+      <ServiceBookingServiceEntity>[].obs;
   final RxBool isLoadingNurses = false.obs;
+  final RxBool isLoadingServices = false.obs;
   final RxnString nurseErrorMessage = RxnString();
+  final RxnString serviceErrorMessage = RxnString();
+  final RxnString selectedServiceCategoryKey = RxnString();
+  final RxnInt requestedMatchmakingServiceId = RxnInt();
 
   Position? _currentPosition;
 
@@ -24,6 +37,7 @@ class HomeController extends GetxController {
   void onInit() {
     super.onInit();
     fetchCurrentLocation();
+    fetchServiceCatalog();
   }
 
   void selectBottomNav(int index) {
@@ -163,6 +177,82 @@ class HomeController extends GetxController {
     }
   }
 
+  Future<void> fetchServiceCatalog() async {
+    isLoadingServices.value = true;
+    serviceErrorMessage.value = null;
+
+    try {
+      final services = await _getServicesUseCase(perPage: 100);
+      serviceCatalog.assignAll(services);
+
+      if (selectedServiceCategoryKey.value == null &&
+          groupedServices.isNotEmpty) {
+        selectedServiceCategoryKey.value = groupedServices.first.key;
+      }
+    } on AppException catch (error) {
+      serviceCatalog.clear();
+      serviceErrorMessage.value = error.message;
+    } catch (_) {
+      serviceCatalog.clear();
+      serviceErrorMessage.value = 'Gagal memuat katalog layanan.';
+    } finally {
+      isLoadingServices.value = false;
+    }
+  }
+
+  List<ServiceCategoryGroup> get groupedServices {
+    final groups = <String, ServiceCategoryGroup>{};
+
+    for (final service in serviceCatalog) {
+      final categoryName = (service.categoryName ?? service.category ?? 'Lainnya')
+          .trim();
+      final label = categoryName.isEmpty ? 'Lainnya' : categoryName;
+      final key = service.categoryId?.toString() ?? label.toLowerCase();
+      final current = groups[key];
+
+      if (current == null) {
+        groups[key] = ServiceCategoryGroup(
+          key: key,
+          id: service.categoryId,
+          name: label,
+          icon: service.categoryIcon,
+          services: <ServiceBookingServiceEntity>[service],
+        );
+      } else {
+        current.services.add(service);
+      }
+    }
+
+    final result = groups.values.toList();
+    result.sort((first, second) => first.name.compareTo(second.name));
+    return result;
+  }
+
+  ServiceCategoryGroup? get selectedServiceCategory {
+    final groups = groupedServices;
+    if (groups.isEmpty) {
+      return null;
+    }
+
+    final selectedKey = selectedServiceCategoryKey.value;
+    for (final group in groups) {
+      if (group.key == selectedKey) {
+        return group;
+      }
+    }
+
+    return groups.first;
+  }
+
+  void selectServiceCategory(ServiceCategoryGroup group) {
+    selectedServiceCategoryKey.value = group.key;
+  }
+
+  void openMatchmakingForService(ServiceBookingServiceEntity service) {
+    requestedMatchmakingServiceId.value = service.bookingServiceId;
+    selectBottomNav(2);
+  }
+
   String _joinLocationParts(List<String?> parts) {
     return parts
         .whereType<String>()
@@ -171,6 +261,22 @@ class HomeController extends GetxController {
         .toSet()
         .join(', ');
   }
+}
+
+class ServiceCategoryGroup {
+  ServiceCategoryGroup({
+    required this.key,
+    required this.id,
+    required this.name,
+    required this.icon,
+    required this.services,
+  });
+
+  final String key;
+  final int? id;
+  final String name;
+  final String? icon;
+  final List<ServiceBookingServiceEntity> services;
 }
 
 class LocationBannerState {

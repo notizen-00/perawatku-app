@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
+import 'package:latlong2/latlong.dart';
 
+import '../../../../core/helpers/app_snackbar.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/patient_member_entity.dart';
 import '../controllers/patient_member_controller.dart';
@@ -356,31 +359,47 @@ class _MemberForm extends StatelessWidget {
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 16),
-              _Field(controller: controller.nameController, label: 'Nama *'),
-              _Field(controller: controller.relationshipController, label: 'Hubungan'),
+              const _SectionTitle(
+                title: 'Data utama',
+                subtitle: 'Nama wajib diisi. Field lain boleh dikosongkan.',
+              ),
+              _Field(
+                controller: controller.nameController,
+                label: 'Nama pasien',
+                required: true,
+              ),
+              _DropdownField(
+                controller: controller.relationshipController,
+                label: 'Hubungan',
+                options: const <String>[
+                  'self',
+                  'suami',
+                  'istri',
+                  'anak',
+                  'kakek',
+                  'nenek',
+                ],
+                onChanged: controller.setRelationship,
+              ),
               Row(
                 children: [
-                  Expanded(
-                    child: _Field(
-                      controller: controller.dateOfBirthController,
-                      label: 'Tanggal lahir',
-                      hint: 'YYYY-MM-DD',
-                    ),
-                  ),
+                  Expanded(child: _DateField(controller: controller)),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _Field(
                       controller: controller.ageController,
                       label: 'Umur',
+                      optional: true,
                       keyboardType: TextInputType.number,
                     ),
                   ),
                 ],
               ),
-              _Field(
+              _DropdownField(
                 controller: controller.genderController,
                 label: 'Jenis kelamin',
-                hint: 'laki-laki / perempuan',
+                options: const <String>['laki-laki', 'perempuan'],
+                onChanged: controller.setGender,
               ),
               Row(
                 children: [
@@ -388,6 +407,7 @@ class _MemberForm extends StatelessWidget {
                     child: _Field(
                       controller: controller.phoneController,
                       label: 'Telepon',
+                      optional: true,
                       keyboardType: TextInputType.phone,
                     ),
                   ),
@@ -396,68 +416,104 @@ class _MemberForm extends StatelessWidget {
                     child: _Field(
                       controller: controller.bloodTypeController,
                       label: 'Golongan darah',
+                      optional: true,
                     ),
                   ),
                 ],
               ),
-              _Field(
-                controller: controller.emergencyContactNameController,
-                label: 'Nama kontak darurat',
-              ),
-              _Field(
-                controller: controller.emergencyContactPhoneController,
-                label: 'Telepon kontak darurat',
-                keyboardType: TextInputType.phone,
-              ),
-              _Field(controller: controller.allergiesController, label: 'Alergi'),
-              _Field(
-                controller: controller.medicalNotesController,
-                label: 'Catatan medis',
-                maxLines: 3,
-              ),
               const SizedBox(height: 8),
-              const Text(
-                'Alamat layanan',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+              const _SectionTitle(
+                title: 'Alamat layanan',
+                subtitle:
+                    'Alamat dan titik peta opsional, tapi berguna untuk layanan homecare.',
               ),
               const SizedBox(height: 10),
-              _Field(controller: controller.addressLabelController, label: 'Label alamat'),
-              _Field(controller: controller.recipientNameController, label: 'Nama penerima'),
               _Field(
-                controller: controller.recipientPhoneController,
-                label: 'Telepon penerima',
-                keyboardType: TextInputType.phone,
+                controller: controller.addressLabelController,
+                label: 'Label alamat',
+                optional: true,
+                hint: 'Rumah, Kos, Rumah Kakek',
               ),
               _Field(
                 controller: controller.addressController,
                 label: 'Alamat lengkap',
+                optional: true,
                 maxLines: 3,
               ),
-              _Field(controller: controller.provinceController, label: 'Provinsi'),
-              Row(
-                children: [
-                  Expanded(child: _Field(controller: controller.cityController, label: 'Kota')),
-                  const SizedBox(width: 10),
-                  Expanded(child: _Field(controller: controller.districtController, label: 'Kecamatan')),
-                ],
+              _Field(
+                controller: controller.provinceController,
+                label: 'Provinsi',
+                optional: true,
               ),
-              _Field(controller: controller.postalCodeController, label: 'Kode pos'),
               Row(
                 children: [
                   Expanded(
                     child: _Field(
-                      controller: controller.latitudeController,
-                      label: 'Latitude',
-                      keyboardType: TextInputType.number,
+                      controller: controller.cityController,
+                      label: 'Kota',
+                      optional: true,
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _Field(
-                      controller: controller.longitudeController,
-                      label: 'Longitude',
-                      keyboardType: TextInputType.number,
+                      controller: controller.districtController,
+                      label: 'Kecamatan',
+                      optional: true,
                     ),
+                  ),
+                ],
+              ),
+              _Field(
+                controller: controller.postalCodeController,
+                label: 'Kode pos',
+                optional: true,
+              ),
+              _MapCoordinateField(controller: controller),
+              const SizedBox(height: 8),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Field opsional lainnya',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                subtitle: const Text(
+                  'Kontak darurat, alergi, catatan medis, dan penerima.',
+                ),
+                children: [
+                  _Field(
+                    controller: controller.emergencyContactNameController,
+                    label: 'Nama kontak darurat',
+                    optional: true,
+                  ),
+                  _Field(
+                    controller: controller.emergencyContactPhoneController,
+                    label: 'Telepon kontak darurat',
+                    optional: true,
+                    keyboardType: TextInputType.phone,
+                  ),
+                  _Field(
+                    controller: controller.allergiesController,
+                    label: 'Alergi',
+                    optional: true,
+                  ),
+                  _Field(
+                    controller: controller.medicalNotesController,
+                    label: 'Catatan medis',
+                    optional: true,
+                    maxLines: 3,
+                  ),
+                  _Field(
+                    controller: controller.recipientNameController,
+                    label: 'Nama penerima',
+                    optional: true,
+                  ),
+                  _Field(
+                    controller: controller.recipientPhoneController,
+                    label: 'Telepon penerima',
+                    optional: true,
+                    keyboardType: TextInputType.phone,
                   ),
                 ],
               ),
@@ -478,8 +534,22 @@ class _MemberForm extends StatelessWidget {
                   onPressed: controller.isSaving.value
                       ? null
                       : () async {
+                          final isCreating = controller.editingMember.value == null;
                           final saved = await controller.saveMember();
-                          if (saved) Get.back<void>();
+                          if (!saved) {
+                            return;
+                          }
+
+                          Get.back<void>();
+                          Future<void>.delayed(
+                            const Duration(milliseconds: 180),
+                            () => AppSnackbar.success(
+                              isCreating
+                                  ? 'Profil ditambahkan'
+                                  : 'Profil diperbarui',
+                              'Data pasien keluarga sudah tersimpan.',
+                            ),
+                          );
                         },
                   icon: controller.isSaving.value
                       ? const SizedBox(
@@ -488,12 +558,46 @@ class _MemberForm extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.save_rounded),
-                  label: Text(controller.isSaving.value ? 'Menyimpan...' : 'Simpan'),
+                  label: Text(
+                    controller.isSaving.value ? 'Menyimpan...' : 'Simpan',
+                  ),
                 ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: AppColors.lightMutedText,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -506,6 +610,8 @@ class _Field extends StatelessWidget {
     this.hint,
     this.keyboardType,
     this.maxLines = 1,
+    this.required = false,
+    this.optional = false,
   });
 
   final TextEditingController controller;
@@ -513,6 +619,8 @@ class _Field extends StatelessWidget {
   final String? hint;
   final TextInputType? keyboardType;
   final int maxLines;
+  final bool required;
+  final bool optional;
 
   @override
   Widget build(BuildContext context) {
@@ -522,19 +630,328 @@ class _Field extends StatelessWidget {
         controller: controller,
         keyboardType: keyboardType,
         maxLines: maxLines,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          filled: true,
-          fillColor: const Color(0xFFF7F9FC),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
+        decoration: _inputDecoration(
+          label: label,
+          hint: hint,
+          required: required,
+          optional: optional,
         ),
       ),
     );
   }
+}
+
+class _DateField extends StatelessWidget {
+  const _DateField({required this.controller});
+
+  final PatientMemberController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller.dateOfBirthController,
+        readOnly: true,
+        onTap: () async {
+          final now = DateTime.now();
+          final current = DateTime.tryParse(controller.dateOfBirthController.text);
+          final selected = await showDatePicker(
+            context: context,
+            initialDate: current ?? DateTime(now.year - 25, now.month, now.day),
+            firstDate: DateTime(now.year - 150),
+            lastDate: now,
+          );
+          if (selected != null) {
+            controller.setDateOfBirth(selected);
+          }
+        },
+        decoration: _inputDecoration(
+          label: 'Tanggal lahir',
+          hint: 'YYYY-MM-DD',
+          optional: true,
+        ).copyWith(
+          suffixIcon: const Icon(Icons.calendar_month_rounded),
+        ),
+      ),
+    );
+  }
+}
+
+class _DropdownField extends StatelessWidget {
+  const _DropdownField({
+    required this.controller,
+    required this.label,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final List<String> options;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final selected = options.contains(value.text) ? value.text : null;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: DropdownButtonFormField<String>(
+            value: selected,
+            isExpanded: true,
+            decoration: _inputDecoration(label: label, optional: true),
+            items: options
+                .map(
+                  (item) => DropdownMenuItem<String>(
+                    value: item,
+                    child: Text(item),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MapCoordinateField extends StatelessWidget {
+  const _MapCoordinateField({required this.controller});
+
+  final PatientMemberController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller.latitudeController,
+      builder: (context, latitudeValue, _) {
+        return ValueListenableBuilder<TextEditingValue>(
+          valueListenable: controller.longitudeController,
+          builder: (context, longitudeValue, _) {
+            final label = latitudeValue.text.trim().isEmpty ||
+                    longitudeValue.text.trim().isEmpty
+                ? 'Belum ada titik peta'
+                : '${latitudeValue.text}, ${longitudeValue.text}';
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F9FC),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_rounded, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Titik peta (opsional)',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: AppColors.lightMutedText,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _openLocationPicker(context),
+                    icon: const Icon(Icons.map_rounded),
+                    label: const Text('Pilih'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _openLocationPicker(BuildContext context) {
+    final latitude = double.tryParse(controller.latitudeController.text);
+    final longitude = double.tryParse(controller.longitudeController.text);
+    final initial = latitude != null && longitude != null
+        ? LatLng(latitude, longitude)
+        : const LatLng(-8.1724, 113.7007);
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => _LocationPickerSheet(
+        initialLocation: initial,
+        onSelected: (point) {
+          controller.setCoordinates(
+            latitude: point.latitude,
+            longitude: point.longitude,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _LocationPickerSheet extends StatefulWidget {
+  const _LocationPickerSheet({
+    required this.initialLocation,
+    required this.onSelected,
+  });
+
+  final LatLng initialLocation;
+  final ValueChanged<LatLng> onSelected;
+
+  @override
+  State<_LocationPickerSheet> createState() => _LocationPickerSheetState();
+}
+
+class _LocationPickerSheetState extends State<_LocationPickerSheet> {
+  late LatLng selectedLocation = widget.initialLocation;
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height * 0.76;
+
+    return SizedBox(
+      height: height,
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 42,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFD8DEE7),
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pilih titik lokasi',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Tap area peta untuk menggeser marker.',
+                        style: TextStyle(color: AppColors.lightMutedText),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: FlutterMap(
+              options: MapOptions(
+                initialCenter: selectedLocation,
+                initialZoom: 15,
+                onTap: (_, point) {
+                  setState(() => selectedLocation = point);
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.medic.patient.app',
+                  maxZoom: 19,
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      width: 48,
+                      height: 48,
+                      point: selectedLocation,
+                      child: const Icon(
+                        Icons.location_on_rounded,
+                        color: AppColors.error,
+                        size: 46,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${selectedLocation.latitude.toStringAsFixed(6)}, '
+                    '${selectedLocation.longitude.toStringAsFixed(6)}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                FilledButton.icon(
+                  onPressed: () {
+                    widget.onSelected(selectedLocation);
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Pakai titik ini'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+InputDecoration _inputDecoration({
+  required String label,
+  String? hint,
+  bool required = false,
+  bool optional = false,
+}) {
+  return InputDecoration(
+    labelText: required
+        ? '$label *'
+        : optional
+            ? '$label (opsional)'
+            : label,
+    hintText: hint,
+    filled: true,
+    fillColor: const Color(0xFFF7F9FC),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+  );
 }
 
 class _InfoPill extends StatelessWidget {

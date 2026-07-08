@@ -7,7 +7,9 @@ import '../../activity/domain/usecases/get_consultation_activities_use_case.dart
 import '../../activity/domain/usecases/get_medicine_purchase_activities_use_case.dart';
 import '../../activity/domain/usecases/get_other_activities_use_case.dart';
 import '../../account/presentation/account_page.dart';
+import '../../nurse/domain/usecases/get_service_booking_services_use_case.dart';
 import '../../nurse/domain/usecases/get_nurses_use_case.dart';
+import '../../nurse/presentation/pages/service_matchmaking_page.dart';
 import '../controller/home_controller.dart';
 import '../widget/active_order_status_overlay.dart';
 import '../widget/home_bottom_bar.dart';
@@ -19,7 +21,12 @@ class MedicHomePage extends StatelessWidget {
 
   final HomeController controller = Get.isRegistered<HomeController>()
       ? Get.find<HomeController>()
-      : Get.put(HomeController(Get.find<GetNursesUseCase>()));
+      : Get.put(
+          HomeController(
+            getNursesUseCase: Get.find<GetNursesUseCase>(),
+            getServicesUseCase: Get.find<GetServiceBookingServicesUseCase>(),
+          ),
+        );
 
   final ActivityController activityController =
       Get.isRegistered<ActivityController>()
@@ -37,11 +44,7 @@ class MedicHomePage extends StatelessWidget {
   List<Widget> get _pages => [
     const HomeDashboardContent(),
     ActivityPage(),
-    const HomePlaceholderPage(
-      title: 'Medic',
-      icon: Icons.local_hospital_rounded,
-      description: 'Pusat akses cepat layanan medis akan ditampilkan di sini.',
-    ),
+    const ServiceMatchmakingPage(),
     const HomePlaceholderPage(
       title: 'Chat',
       icon: Icons.chat_bubble_outline_rounded,

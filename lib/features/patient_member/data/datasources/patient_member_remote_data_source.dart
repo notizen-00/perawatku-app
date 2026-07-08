@@ -48,10 +48,7 @@ class PatientMemberRemoteDataSourceImpl
       },
     );
 
-    final items = extractListOfMaps(
-      response,
-      preferredKeys: const <String>['data', 'members'],
-    );
+    final items = extractLaravelPaginatedList(response);
     return items.map(PatientMemberModel.fromJson).toList();
   }
 

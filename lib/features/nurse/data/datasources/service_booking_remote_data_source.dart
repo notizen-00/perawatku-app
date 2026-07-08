@@ -13,10 +13,16 @@ abstract class ServiceBookingRemoteDataSource {
 
   Future<ServiceBookingModel> createBooking({
     required int serviceId,
-    required int patientAddressId,
+    int? patientMemberId,
+    int? patientAddressId,
     String? scheduledAt,
     String? notes,
     String? promoCode,
+  });
+
+  Future<Map<String, dynamic>> checkPromoCode({
+    required String code,
+    required int serviceId,
   });
 
   Future<ServiceBookingModel> getBooking(int bookingId);
@@ -47,17 +53,15 @@ class ServiceBookingRemoteDataSourceImpl
       },
     );
 
-    final items = extractListOfMaps(
-      response,
-      preferredKeys: const <String>['data', 'services'],
-    );
+    final items = extractLaravelPaginatedList(response);
     return items.map(ServiceBookingServiceModel.fromJson).toList();
   }
 
   @override
   Future<ServiceBookingModel> createBooking({
     required int serviceId,
-    required int patientAddressId,
+    int? patientMemberId,
+    int? patientAddressId,
     String? scheduledAt,
     String? notes,
     String? promoCode,
@@ -66,7 +70,8 @@ class ServiceBookingRemoteDataSourceImpl
       AppEndpoints.patientServiceBookings,
       data: <String, dynamic>{
         'service_id': serviceId,
-        'patient_address_id': patientAddressId,
+        if (patientMemberId != null) 'patient_member_id': patientMemberId,
+        if (patientAddressId != null) 'patient_address_id': patientAddressId,
         if (scheduledAt != null && scheduledAt.trim().isNotEmpty)
           'scheduled_at': scheduledAt.trim(),
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
@@ -76,6 +81,20 @@ class ServiceBookingRemoteDataSourceImpl
     );
 
     return ServiceBookingModel.fromJson(response);
+  }
+
+  @override
+  Future<Map<String, dynamic>> checkPromoCode({
+    required String code,
+    required int serviceId,
+  }) {
+    return _apiClient.post(
+      AppEndpoints.patientServiceBookingCheckPromoCode,
+      data: <String, dynamic>{
+        'code': code.trim(),
+        'service_id': serviceId,
+      },
+    );
   }
 
   @override
