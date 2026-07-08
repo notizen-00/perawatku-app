@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../service_booking/presentation/controllers/service_booking_controller.dart';
 import '../controller/home_controller.dart';
 
 class HomeBottomBar extends StatelessWidget {
@@ -83,7 +84,13 @@ class HomeBottomBar extends StatelessWidget {
                 top: 2,
                 child: _CenterMedicButton(
                   selected: controller.selectedBottomNavIndex.value == 2,
-                  onTap: () => controller.selectBottomNav(2),
+                  onTap: () {
+                    if (Get.isRegistered<ServiceBookingController>()) {
+                      Get.find<ServiceBookingController>()
+                          .resetMatchmakingForm();
+                    }
+                    controller.selectBottomNav(2);
+                  },
                   isDark: isDark,
                 ),
               ),

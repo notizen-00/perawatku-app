@@ -4,7 +4,13 @@ class ServiceBookingEntity {
     required this.bookingCode,
     required this.serviceId,
     required this.assignedPartnerUserId,
+    required this.patientMemberId,
     required this.patientAddressId,
+    required this.serviceName,
+    required this.patientMemberName,
+    required this.partnerName,
+    required this.scheduledAt,
+    required this.notes,
     required this.status,
     required this.totalAmount,
     required this.paymentStatus,
@@ -17,7 +23,13 @@ class ServiceBookingEntity {
   final String bookingCode;
   final int? serviceId;
   final int? assignedPartnerUserId;
+  final int? patientMemberId;
   final int? patientAddressId;
+  final String? serviceName;
+  final String? patientMemberName;
+  final String? partnerName;
+  final String? scheduledAt;
+  final String? notes;
   final String status;
   final String? totalAmount;
   final String? paymentStatus;

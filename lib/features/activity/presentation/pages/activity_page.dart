@@ -79,7 +79,7 @@ class ActivityPage extends StatelessWidget {
                       indicatorSize: TabBarIndicatorSize.tab,
                       tabs: [
                         Tab(text: 'Konsultasi'),
-                        Tab(text: 'Obat'),
+                        Tab(text: 'Layanan'),
                         Tab(text: 'Lainnya'),
                       ],
                     ),
@@ -127,20 +127,20 @@ class ActivityPage extends StatelessWidget {
           statusStyle: _statusStyle,
         ),
         _ActivityListTab(
-          records: controller.medicineActivities,
-          emptyTitle: 'Belum ada pembelian obat',
+          records: controller.otherActivities,
+          emptyTitle: 'Belum ada booking layanan',
           emptyDescription:
-              'Pesanan obat dari apotek atau resep digital akan tampil di tab ini.',
-          icon: Icons.medication_rounded,
+              'Booking homecare dan layanan medis akan tampil di tab ini.',
+          icon: Icons.home_repair_service_rounded,
           isDark: isDark,
           formatDate: _formatDate,
           statusStyle: _statusStyle,
         ),
         _ActivityListTab(
-          records: controller.otherActivities,
+          records: controller.medicineActivities,
           emptyTitle: 'Belum ada aktivitas lain',
           emptyDescription:
-              'Reservasi lab, kunjungan rumah, dan aktivitas medis lainnya akan tampil di sini.',
+              'Aktivitas medis lain yang belum masuk kategori layanan akan tampil di sini.',
           icon: Icons.inventory_2_rounded,
           isDark: isDark,
           formatDate: _formatDate,
@@ -261,7 +261,7 @@ class _ActivityHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Pantau riwayat konsultasi, pembelian obat, dan aktivitas medis Anda dalam satu tempat.',
+                  'Pantau riwayat konsultasi, booking layanan, dan aktivitas medis Anda dalam satu tempat.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: const Color(0xFF204B48),
                     height: 1.35,
@@ -338,7 +338,14 @@ class _ActivityListTab extends StatelessWidget {
                       ),
                     );
                   }
-                : null,
+                : record.canOpenServiceBooking
+                    ? () {
+                        Get.toNamed(
+                          AppRoutes.serviceBookingDetail,
+                          arguments: {'bookingId': int.tryParse(record.id)},
+                        );
+                      }
+                    : null,
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -409,12 +416,15 @@ class _ActivityListTab extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (record.canOpenConsultation) ...[
+                          if (record.canOpenConsultation ||
+                              record.canOpenServiceBooking) ...[
                             const SizedBox(height: 10),
                             Text(
-                              record.canOpenChat
-                                  ? 'Buka chat'
-                                  : 'Lihat konsultasi',
+                              record.canOpenServiceBooking
+                                  ? 'Lihat detail'
+                                  : record.canOpenChat
+                                      ? 'Buka chat'
+                                      : 'Lihat konsultasi',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,

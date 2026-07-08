@@ -7,11 +7,13 @@ class GetServiceBookingServicesUseCase {
   final ServiceBookingRepository _repository;
 
   Future<List<ServiceBookingServiceEntity>> call({
+    int? categoryId,
     String? category,
     String? search,
     int? perPage,
   }) {
     return _repository.getServices(
+      categoryId: categoryId,
       category: category,
       search: search,
       perPage: perPage,

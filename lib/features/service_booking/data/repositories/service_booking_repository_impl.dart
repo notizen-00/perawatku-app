@@ -12,11 +12,13 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
 
   @override
   Future<List<ServiceBookingServiceEntity>> getServices({
+    int? categoryId,
     String? category,
     String? search,
     int? perPage,
   }) {
     return _remoteDataSource.getServices(
+      categoryId: categoryId,
       category: category,
       search: search,
       perPage: perPage,

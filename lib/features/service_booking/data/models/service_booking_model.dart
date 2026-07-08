@@ -6,7 +6,13 @@ class ServiceBookingModel extends ServiceBookingEntity {
     required super.bookingCode,
     required super.serviceId,
     required super.assignedPartnerUserId,
+    required super.patientMemberId,
     required super.patientAddressId,
+    required super.serviceName,
+    required super.patientMemberName,
+    required super.partnerName,
+    required super.scheduledAt,
+    required super.notes,
     required super.status,
     required super.totalAmount,
     required super.paymentStatus,
@@ -44,6 +50,21 @@ class ServiceBookingModel extends ServiceBookingEntity {
         _readMap(root['matchmaking']) ??
         _readMap(data?['matchmaking']) ??
         _readMap(booking['matchmaking']);
+    final service = _readMap(booking['service']) ??
+        _readMap(data?['service']) ??
+        _readMap(root['service']) ??
+        <String, dynamic>{};
+    final patientMember = _readMap(booking['patient_member']) ??
+        _readMap(data?['patient_member']) ??
+        _readMap(root['patient_member']) ??
+        <String, dynamic>{};
+    final partner = _readMap(booking['assigned_partner']) ??
+        _readMap(booking['partner']) ??
+        _readMap(data?['assigned_partner']) ??
+        _readMap(data?['partner']) ??
+        _readMap(root['assigned_partner']) ??
+        _readMap(root['partner']) ??
+        <String, dynamic>{};
 
     return ServiceBookingModel(
       id: _readInt(booking['id']) ?? 0,
@@ -54,7 +75,25 @@ class ServiceBookingModel extends ServiceBookingEntity {
       assignedPartnerUserId: _readInt(
         booking['assigned_partner_user_id'] ?? booking['partner_user_id'],
       ),
+      patientMemberId: _readInt(booking['patient_member_id']),
       patientAddressId: _readInt(booking['patient_address_id']),
+      serviceName: _readString(
+        service['name'] ?? booking['service_name'] ?? data?['service_name'],
+      ),
+      patientMemberName: _readString(
+        patientMember['name'] ??
+            booking['patient_member_name'] ??
+            data?['patient_member_name'],
+      ),
+      partnerName: _readString(
+        partner['name'] ?? booking['partner_name'] ?? data?['partner_name'],
+      ),
+      scheduledAt: _readString(
+        booking['scheduled_at'] ??
+            booking['schedule_start_at'] ??
+            data?['scheduled_at'],
+      ),
+      notes: _readString(booking['notes'] ?? data?['notes']),
       status: _readString(booking['status']) ?? 'pending',
       totalAmount: _readString(
         booking['total_amount'] ??

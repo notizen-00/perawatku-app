@@ -6,23 +6,23 @@ import '../../../home/controller/home_controller.dart';
 import '../../../patient_member/domain/usecases/get_patient_members_use_case.dart';
 import '../../domain/usecases/check_promo_code_use_case.dart';
 import '../../domain/usecases/create_service_booking_use_case.dart';
-import '../../domain/usecases/get_nurses_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
+import '../../../nurse/domain/usecases/get_nurses_use_case.dart';
 import '../../domain/usecases/pay_service_booking_use_case.dart';
-import '../controllers/nurse_controller.dart';
+import '../controllers/service_booking_controller.dart';
 import '../widgets/service_booking_panel.dart';
 
 class ServiceMatchmakingPage extends StatelessWidget {
   const ServiceMatchmakingPage({super.key});
 
-  NurseController _ensureController() {
-    if (Get.isRegistered<NurseController>()) {
-      return Get.find<NurseController>();
+  ServiceBookingController _ensureController() {
+    if (Get.isRegistered<ServiceBookingController>()) {
+      return Get.find<ServiceBookingController>();
     }
 
     return Get.put(
-      NurseController(
+      ServiceBookingController(
         getNursesUseCase: Get.find<GetNursesUseCase>(),
         getServicesUseCase: Get.find<GetServiceBookingServicesUseCase>(),
         createBookingUseCase: Get.find<CreateServiceBookingUseCase>(),
@@ -59,7 +59,7 @@ class ServiceMatchmakingPage extends StatelessWidget {
     );
   }
 
-  void _applyRequestedService(NurseController nurseController) {
+  void _applyRequestedService(ServiceBookingController nurseController) {
     if (!Get.isRegistered<HomeController>()) {
       return;
     }
@@ -70,8 +70,8 @@ class ServiceMatchmakingPage extends StatelessWidget {
       return;
     }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final selected = nurseController.selectServiceByBookingServiceId(
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final selected = await nurseController.selectServiceByBookingServiceId(
         serviceId,
       );
       if (selected) {

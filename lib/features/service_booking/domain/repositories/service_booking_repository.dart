@@ -3,6 +3,7 @@ import '../entities/service_booking_service_entity.dart';
 
 abstract class ServiceBookingRepository {
   Future<List<ServiceBookingServiceEntity>> getServices({
+    int? categoryId,
     String? category,
     String? search,
     int? perPage,

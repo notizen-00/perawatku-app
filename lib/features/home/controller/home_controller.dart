@@ -4,9 +4,9 @@ import 'package:get/get.dart';
 
 import '../../../core/errors/app_exception.dart';
 import '../../nurse/domain/entities/nurse_entity.dart';
-import '../../nurse/domain/entities/service_booking_service_entity.dart';
-import '../../nurse/domain/usecases/get_service_booking_services_use_case.dart';
 import '../../nurse/domain/usecases/get_nurses_use_case.dart';
+import '../../service_booking/domain/entities/service_booking_service_entity.dart';
+import '../../service_booking/domain/usecases/get_service_booking_services_use_case.dart';
 
 class HomeController extends GetxController {
   HomeController({

@@ -15,11 +15,7 @@ class NursePage extends GetView<NurseController> {
       body: Obx(
         () => RefreshIndicator(
           onRefresh: () async {
-            await Future.wait([
-              controller.loadNurses(),
-              controller.loadServices(),
-              controller.loadPatientMembers(),
-            ]);
+            await controller.loadNurses();
           },
           child: ListView(
             padding: const EdgeInsets.all(16),

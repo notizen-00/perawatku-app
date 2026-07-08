@@ -6,6 +6,7 @@ import '../models/service_booking_service_model.dart';
 
 abstract class ServiceBookingRemoteDataSource {
   Future<List<ServiceBookingServiceModel>> getServices({
+    int? categoryId,
     String? category,
     String? search,
     int? perPage,
@@ -39,6 +40,7 @@ class ServiceBookingRemoteDataSourceImpl
 
   @override
   Future<List<ServiceBookingServiceModel>> getServices({
+    int? categoryId,
     String? category,
     String? search,
     int? perPage,
@@ -46,7 +48,10 @@ class ServiceBookingRemoteDataSourceImpl
     final response = await _apiClient.get(
       AppEndpoints.patientServiceBookingServices,
       queryParameters: <String, dynamic>{
-        if (category != null && category.trim().isNotEmpty)
+        if (categoryId != null && categoryId > 0) 'category_id': categoryId,
+        if ((categoryId == null || categoryId <= 0) &&
+            category != null &&
+            category.trim().isNotEmpty)
           'category': category.trim(),
         if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
         if (perPage != null) 'per_page': perPage,

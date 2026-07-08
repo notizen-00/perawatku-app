@@ -7,9 +7,9 @@ import '../../activity/domain/usecases/get_consultation_activities_use_case.dart
 import '../../activity/domain/usecases/get_medicine_purchase_activities_use_case.dart';
 import '../../activity/domain/usecases/get_other_activities_use_case.dart';
 import '../../account/presentation/account_page.dart';
-import '../../nurse/domain/usecases/get_service_booking_services_use_case.dart';
 import '../../nurse/domain/usecases/get_nurses_use_case.dart';
-import '../../nurse/presentation/pages/service_matchmaking_page.dart';
+import '../../service_booking/domain/usecases/get_service_booking_services_use_case.dart';
+import '../../service_booking/presentation/pages/service_matchmaking_page.dart';
 import '../controller/home_controller.dart';
 import '../widget/active_order_status_overlay.dart';
 import '../widget/home_bottom_bar.dart';

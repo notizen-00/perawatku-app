@@ -15,6 +15,8 @@ import '../../features/nurse/presentation/bindings/nurse_binding.dart';
 import '../../features/nurse/presentation/pages/nurse_page.dart';
 import '../../features/notification/presentation/pages/notification_page.dart';
 import '../../features/patient_member/presentation/pages/patient_member_page.dart';
+import '../../features/service_booking/presentation/bindings/service_booking_binding.dart';
+import '../../features/service_booking/presentation/pages/service_booking_detail_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -36,6 +38,11 @@ class AppPages {
       name: AppRoutes.nurses,
       page: () => const NursePage(),
       binding: NurseBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.serviceBookingDetail,
+      page: () => const ServiceBookingDetailPage(),
+      binding: ServiceBookingBinding(),
     ),
     GetPage(
       name: AppRoutes.doctors,

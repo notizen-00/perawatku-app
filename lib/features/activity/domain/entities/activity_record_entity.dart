@@ -32,6 +32,9 @@ class ActivityRecordEntity {
   bool get canOpenConsultation =>
       category == 'consultation' && consultationId != null;
 
+  bool get canOpenServiceBooking =>
+      category == 'other' && int.tryParse(id) != null;
+
   bool get canOpenChat {
     if (!canOpenConsultation) {
       return false;

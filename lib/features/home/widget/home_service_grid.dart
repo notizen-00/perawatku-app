@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../core/helpers/currency_formatter.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../nurse/domain/entities/service_booking_service_entity.dart';
+import '../../service_booking/domain/entities/service_booking_service_entity.dart';
 import '../controller/home_controller.dart';
 
 class HomeServiceGrid extends StatelessWidget {
