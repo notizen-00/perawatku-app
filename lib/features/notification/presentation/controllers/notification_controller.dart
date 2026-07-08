@@ -28,8 +28,73 @@ class NotificationController extends GetxController {
   final RxnString errorMessage = RxnString();
   final RxInt unreadCount = 0.obs;
   final RxList<NotificationEntity> notifications = <NotificationEntity>[].obs;
+  final RxString selectedCategory = NotificationCategoryOption.all.key.obs;
 
   String? _subscribedChannel;
+
+  List<NotificationCategoryOption> get categoryOptions => const [
+    NotificationCategoryOption(
+      key: 'all',
+      label: 'Semua',
+      iconName: 'notifications',
+    ),
+    NotificationCategoryOption(
+      key: 'unread',
+      label: 'Belum dibaca',
+      iconName: 'unread',
+    ),
+    NotificationCategoryOption(key: 'chat', label: 'Chat', iconName: 'chat'),
+    NotificationCategoryOption(
+      key: 'system',
+      label: 'Sistem',
+      iconName: 'system',
+    ),
+    NotificationCategoryOption(
+      key: 'consultation',
+      label: 'Konsultasi',
+      iconName: 'consultation',
+    ),
+    NotificationCategoryOption(
+      key: 'service_booking',
+      label: 'Layanan',
+      iconName: 'service',
+    ),
+  ];
+
+  List<NotificationEntity> get filteredNotifications {
+    final category = selectedCategory.value;
+    if (category == NotificationCategoryOption.all.key) {
+      return notifications.toList();
+    }
+
+    return notifications.where((notification) {
+      if (category == 'unread') {
+        return notification.isUnread;
+      }
+
+      return notification.categoryKey == category;
+    }).toList();
+  }
+
+  void selectCategory(String key) {
+    selectedCategory.value = key;
+  }
+
+  int categoryCount(String key) {
+    if (key == NotificationCategoryOption.all.key) {
+      return notifications.length;
+    }
+
+    if (key == 'unread') {
+      return notifications
+          .where((notification) => notification.isUnread)
+          .length;
+    }
+
+    return notifications
+        .where((notification) => notification.categoryKey == key)
+        .length;
+  }
 
   @override
   void onInit() {
@@ -210,4 +275,22 @@ class NotificationController extends GetxController {
     }
     super.onClose();
   }
+}
+
+class NotificationCategoryOption {
+  const NotificationCategoryOption({
+    required this.key,
+    required this.label,
+    required this.iconName,
+  });
+
+  static const all = NotificationCategoryOption(
+    key: 'all',
+    label: 'Semua',
+    iconName: 'notifications',
+  );
+
+  final String key;
+  final String label;
+  final String iconName;
 }

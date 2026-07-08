@@ -55,22 +55,126 @@ class NotificationPage extends GetView<NotificationController> {
 
         return RefreshIndicator(
           onRefresh: controller.refreshNotifications,
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: controller.notifications.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final notification = controller.notifications[index];
-              return _NotificationTile(
-                notification: notification,
-                isDark: isDark,
-                onTap: () => controller.openNotification(notification),
-              );
-            },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverToBoxAdapter(
+                child: _NotificationCategoryTabs(
+                  controller: controller,
+                  isDark: isDark,
+                ),
+              ),
+              if (controller.filteredNotifications.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: _NotificationStateMessage(
+                    title: 'Kategori masih kosong',
+                    description: 'Belum ada notifikasi pada kategori ini.',
+                    icon: _categoryEmptyIcon(controller.selectedCategory.value),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  sliver: SliverList.separated(
+                    itemCount: controller.filteredNotifications.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final notification =
+                          controller.filteredNotifications[index];
+                      return _NotificationTile(
+                        notification: notification,
+                        isDark: isDark,
+                        onTap: () => controller.openNotification(notification),
+                      );
+                    },
+                  ),
+                ),
+            ],
           ),
         );
       }),
     );
+  }
+
+  IconData _categoryEmptyIcon(String key) {
+    switch (key) {
+      case 'chat':
+        return Icons.person_rounded;
+      case 'system':
+        return Icons.smart_toy_rounded;
+      case 'consultation':
+        return Icons.medical_information_rounded;
+      case 'service_booking':
+        return Icons.local_hospital_rounded;
+      case 'unread':
+        return Icons.mark_email_unread_rounded;
+      default:
+        return Icons.notifications_none_rounded;
+    }
+  }
+}
+
+class _NotificationCategoryTabs extends StatelessWidget {
+  const _NotificationCategoryTabs({
+    required this.controller,
+    required this.isDark,
+  });
+
+  final NotificationController controller;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 58,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+        scrollDirection: Axis.horizontal,
+        itemCount: controller.categoryOptions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final option = controller.categoryOptions[index];
+          final selected = controller.selectedCategory.value == option.key;
+          final count = controller.categoryCount(option.key);
+          final color = selected ? AppColors.primary : AppColors.lightMutedText;
+
+          return ChoiceChip(
+            selected: selected,
+            onSelected: (_) => controller.selectCategory(option.key),
+            avatar: Icon(_categoryIcon(option.iconName), size: 17),
+            label: Text(count > 0 ? '${option.label} $count' : option.label),
+            labelStyle: TextStyle(color: color, fontWeight: FontWeight.w800),
+            backgroundColor: isDark ? const Color(0xFF12211F) : Colors.white,
+            selectedColor: AppColors.primary.withValues(alpha: 0.14),
+            side: BorderSide(
+              color: selected
+                  ? AppColors.primary.withValues(alpha: 0.42)
+                  : isDark
+                  ? AppColors.darkBorder
+                  : AppColors.lightBorder,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  IconData _categoryIcon(String iconName) {
+    switch (iconName) {
+      case 'unread':
+        return Icons.mark_email_unread_rounded;
+      case 'chat':
+        return Icons.person_rounded;
+      case 'system':
+        return Icons.smart_toy_rounded;
+      case 'consultation':
+        return Icons.medical_information_rounded;
+      case 'service':
+        return Icons.local_hospital_rounded;
+      default:
+        return Icons.notifications_active_rounded;
+    }
   }
 }
 
@@ -87,7 +191,7 @@ class _NotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = _typeStyle(notification.type);
+    final style = _typeStyle(notification);
 
     return Material(
       color: Colors.transparent,
@@ -190,15 +294,51 @@ class _NotificationTile extends StatelessWidget {
     );
   }
 
-  _NotificationTypeStyle _typeStyle(String type) {
-    if (type.startsWith('consultation.')) {
+  _NotificationTypeStyle _typeStyle(NotificationEntity notification) {
+    final type = notification.type.toLowerCase().trim();
+    final reference = notification.referenceType?.toLowerCase().trim() ?? '';
+    final messageType = notification.data['message_type']
+        ?.toString()
+        .toLowerCase()
+        .trim();
+    final senderRole =
+        notification.data['sender_role']?.toString().toLowerCase().trim() ??
+        notification.data['sender_type']?.toString().toLowerCase().trim() ??
+        notification.data['role']?.toString().toLowerCase().trim();
+
+    if (messageType == 'system' ||
+        senderRole == 'system' ||
+        type.contains('system')) {
+      return const _NotificationTypeStyle(
+        Icons.smart_toy_rounded,
+        AppColors.info,
+      );
+    }
+
+    if (type.contains('message') ||
+        type.contains('chat') ||
+        reference == 'chat') {
+      return const _NotificationTypeStyle(
+        Icons.person_rounded,
+        AppColors.primary,
+      );
+    }
+
+    if (type.contains('payment') || reference == 'payment') {
+      return const _NotificationTypeStyle(
+        Icons.account_balance_wallet_rounded,
+        AppColors.success,
+      );
+    }
+
+    if (type.startsWith('consultation.') || reference == 'consultation') {
       return const _NotificationTypeStyle(
         Icons.medical_information_rounded,
         AppColors.info,
       );
     }
 
-    if (type.startsWith('service_booking.')) {
+    if (type.startsWith('service_booking.') || reference == 'service_booking') {
       return const _NotificationTypeStyle(
         Icons.local_hospital_rounded,
         AppColors.primary,
@@ -239,12 +379,14 @@ class _NotificationStateMessage extends StatelessWidget {
   const _NotificationStateMessage({
     required this.title,
     required this.description,
+    this.icon = Icons.notifications_none_rounded,
     this.actionLabel,
     this.onTap,
   });
 
   final String title;
   final String description;
+  final IconData icon;
   final String? actionLabel;
   final VoidCallback? onTap;
 
@@ -256,11 +398,7 @@ class _NotificationStateMessage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.notifications_none_rounded,
-              size: 44,
-              color: AppColors.primary,
-            ),
+            Icon(icon, size: 44, color: AppColors.primary),
             const SizedBox(height: 14),
             Text(
               title,
