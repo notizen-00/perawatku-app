@@ -81,196 +81,258 @@ class AccountPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final backgroundColor =
-        isDark ? AppColors.darkBackground : const Color(0xFFF5F7FB);
+    final backgroundColor = isDark
+        ? AppColors.darkBackground
+        : const Color(0xFFF5F7FB);
 
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: Obx(
-          () {
-            final user = controller.user.value;
-            final patient = user?.patientProfile;
-            final emailVerified =
-                user?.emailVerifiedAt != null && user!.emailVerifiedAt!.isNotEmpty;
+        child: Obx(() {
+          final user = controller.user.value;
+          final patient = user?.patientProfile;
+          final emailVerified =
+              user?.emailVerifiedAt != null &&
+              user!.emailVerifiedAt!.isNotEmpty;
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _AccountHero(
-                    isDark: isDark,
-                    title: 'Profil Kesehatan',
-                    subtitle:
-                        'Kelola identitas pasien, keamanan akun, dan ringkasan informasi medis Anda.',
-                  ),
-                  Transform.translate(
-                    offset: const Offset(0, -46),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _ProfileCard(
-                            isDark: isDark,
-                            initials: _initialsOf(user?.name),
-                            name: user?.name ?? 'Pasien',
-                            email: user?.email ?? '-',
-                            phone: user?.phone ?? '-',
-                            emailVerified: emailVerified,
-                            statusText: _emailStatusText(user?.emailVerifiedAt),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _AccountHero(
+                  isDark: isDark,
+                  title: 'Profil Kesehatan',
+                  subtitle:
+                      'Kelola identitas pasien, keamanan akun, dan ringkasan informasi medis Anda.',
+                ),
+                Transform.translate(
+                  offset: const Offset(0, -46),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ProfileCard(
+                          isDark: isDark,
+                          initials: _initialsOf(user?.name),
+                          name: user?.name ?? 'Pasien',
+                          email: user?.email ?? '-',
+                          phone: user?.phone ?? '-',
+                          emailVerified: emailVerified,
+                          statusText: _emailStatusText(user?.emailVerifiedAt),
+                          onEdit: () => _openProfileForm(context),
+                        ),
+                        const SizedBox(height: 18),
+                        _QuickActionGrid(
+                          isDark: isDark,
+                          actions: [
+                            _QuickActionData(
+                              icon: Icons.edit_note_rounded,
+                              title: 'Edit profil',
+                              subtitle: 'Identitas & kesehatan',
+                              color: AppColors.primary,
+                              onTap: () => _openProfileForm(context),
+                            ),
+                            _QuickActionData(
+                              icon: Icons.lock_reset_rounded,
+                              title: 'Password',
+                              subtitle: 'Ubah sandi akun',
+                              color: AppColors.info,
+                              onTap: () => _openPasswordForm(context),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        _HealthAlertCard(
+                          isDark: isDark,
+                          title: emailVerified
+                              ? 'Data kesehatan Anda sudah sinkron'
+                              : 'Verifikasi email untuk mengamankan akun',
+                          subtitle: emailVerified
+                              ? 'Profil pasien siap dipakai untuk konsultasi dan pemesanan layanan.'
+                              : 'Selesaikan verifikasi agar notifikasi hasil konsultasi dan jadwal medis tetap masuk.',
+                          actionLabel: emailVerified
+                              ? 'Terlindungi'
+                              : 'Verifikasi',
+                          icon: emailVerified
+                              ? Icons.verified_user_rounded
+                              : Icons.mark_email_unread_rounded,
+                          highlightColor: emailVerified
+                              ? AppColors.success
+                              : AppColors.warning,
+                        ),
+                        const SizedBox(height: 22),
+                        Text(
+                          'Preferensi Pasien',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
-                          const SizedBox(height: 18),
-                          _HealthAlertCard(
-                            isDark: isDark,
-                            title: emailVerified
-                                ? 'Data kesehatan Anda sudah sinkron'
-                                : 'Verifikasi email untuk mengamankan akun',
-                            subtitle: emailVerified
-                                ? 'Profil pasien siap dipakai untuk konsultasi dan pemesanan layanan.'
-                                : 'Selesaikan verifikasi agar notifikasi hasil konsultasi dan jadwal medis tetap masuk.',
-                            actionLabel: emailVerified ? 'Terlindungi' : 'Verifikasi',
-                            icon: emailVerified
-                                ? Icons.verified_user_rounded
-                                : Icons.mark_email_unread_rounded,
-                            highlightColor: emailVerified
-                                ? AppColors.success
-                                : AppColors.warning,
+                        ),
+                        const SizedBox(height: 12),
+                        _MenuSection(
+                          isDark: isDark,
+                          items: [
+                            _MenuItemData(
+                              icon: Icons.groups_2_rounded,
+                              title: 'Profil keluarga',
+                              subtitle:
+                                  'Kelola profil suami, istri, anak, kakek, nenek, dan pasien lain',
+                              badge: 'CRUD',
+                              badgeColor: AppColors.primary,
+                              onTap: () =>
+                                  Get.toNamed(AppRoutes.patientMembers),
+                            ),
+                            _MenuItemData(
+                              icon: Icons.health_and_safety_rounded,
+                              title: 'Keamanan akun',
+                              subtitle: emailVerified
+                                  ? 'Email aktif dan akun sudah terlindungi'
+                                  : 'Lengkapi verifikasi email Anda',
+                              badge: emailVerified ? 'Aman' : 'Perlu aksi',
+                              badgeColor: emailVerified
+                                  ? AppColors.success
+                                  : AppColors.warning,
+                              onTap: () => _openPasswordForm(context),
+                            ),
+                            _MenuItemData(
+                              icon: Icons.medication_liquid_rounded,
+                              title: 'Alergi & obat',
+                              subtitle:
+                                  (patient?.allergies ?? '').trim().isEmpty
+                                  ? 'Belum ada alergi yang dicatat'
+                                  : patient!.allergies,
+                              onTap: () => _openProfileForm(context),
+                            ),
+                            _MenuItemData(
+                              icon: Icons.bloodtype_rounded,
+                              title: 'Golongan darah',
+                              subtitle:
+                                  (patient?.bloodType ?? '').trim().isEmpty
+                                  ? 'Belum dilengkapi'
+                                  : patient!.bloodType,
+                              onTap: () => _openProfileForm(context),
+                            ),
+                            _MenuItemData(
+                              icon: Icons.contact_phone_rounded,
+                              title: 'Kontak darurat',
+                              onTap: () => _openProfileForm(context),
+                              subtitle:
+                                  '${(patient?.emergencyContactName ?? '').trim().isEmpty ? '-' : patient!.emergencyContactName} - ${(patient?.emergencyContactPhone ?? '').trim().isEmpty ? '-' : patient!.emergencyContactPhone}',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        Text(
+                          'Ringkasan Kesehatan',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
                           ),
-                          const SizedBox(height: 22),
-                          Text(
-                            'Preferensi Pasien',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
+                        ),
+                        const SizedBox(height: 12),
+                        _MenuSection(
+                          isDark: isDark,
+                          items: [
+                            _MenuItemData(
+                              icon: Icons.cake_rounded,
+                              title: 'Tanggal lahir',
+                              subtitle: _formatDate(patient?.dateOfBirth),
+                              onTap: () => _openProfileForm(context),
+                            ),
+                            _MenuItemData(
+                              icon: Icons.person_outline_rounded,
+                              title: 'Jenis kelamin',
+                              subtitle: (patient?.gender ?? '').trim().isEmpty
+                                  ? 'Belum dilengkapi'
+                                  : patient!.gender,
+                              onTap: () => _openProfileForm(context),
+                            ),
+                            _MenuItemData(
+                              icon: Icons.home_rounded,
+                              title: 'Alamat pasien',
+                              subtitle: (patient?.address ?? '').trim().isEmpty
+                                  ? 'Belum ada alamat tersimpan'
+                                  : patient!.address,
+                              onTap: () => _openProfileForm(context),
+                            ),
+                            _MenuItemData(
+                              icon: Icons.description_rounded,
+                              title: 'Catatan medis',
+                              subtitle:
+                                  (patient?.medicalNotes ?? '').trim().isEmpty
+                                  ? 'Belum ada catatan medis'
+                                  : patient!.medicalNotes,
+                              onTap: () => _openProfileForm(context),
+                            ),
+                            _MenuItemData(
+                              icon: Icons.history_rounded,
+                              title: 'Terakhir diperbarui',
+                              subtitle: _formatDate(
+                                user?.updatedAt,
+                                withTime: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 22),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: controller.logout,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.error,
+                              side: BorderSide(
+                                color: AppColors.error.withValues(alpha: 0.3),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                            ),
+                            icon: const Icon(Icons.logout_rounded),
+                            label: const Text(
+                              'Keluar dari akun',
+                              style: TextStyle(fontWeight: FontWeight.w700),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          _MenuSection(
-                            isDark: isDark,
-                            items: [
-                              _MenuItemData(
-                                icon: Icons.groups_2_rounded,
-                                title: 'Profil keluarga',
-                                subtitle:
-                                    'Kelola profil suami, istri, anak, kakek, nenek, dan pasien lain',
-                                badge: 'CRUD',
-                                badgeColor: AppColors.primary,
-                                onTap: () =>
-                                    Get.toNamed(AppRoutes.patientMembers),
-                              ),
-                              _MenuItemData(
-                                icon: Icons.health_and_safety_rounded,
-                                title: 'Keamanan akun',
-                                subtitle: emailVerified
-                                    ? 'Email aktif dan akun sudah terlindungi'
-                                    : 'Lengkapi verifikasi email Anda',
-                                badge: emailVerified ? 'Aman' : 'Perlu aksi',
-                                badgeColor: emailVerified
-                                    ? AppColors.success
-                                    : AppColors.warning,
-                              ),
-                              _MenuItemData(
-                                icon: Icons.medication_liquid_rounded,
-                                title: 'Alergi & obat',
-                                subtitle: (patient?.allergies ?? '').trim().isEmpty
-                                    ? 'Belum ada alergi yang dicatat'
-                                    : patient!.allergies,
-                              ),
-                              _MenuItemData(
-                                icon: Icons.bloodtype_rounded,
-                                title: 'Golongan darah',
-                                subtitle: (patient?.bloodType ?? '').trim().isEmpty
-                                    ? 'Belum dilengkapi'
-                                    : patient!.bloodType,
-                              ),
-                              _MenuItemData(
-                                icon: Icons.contact_phone_rounded,
-                                title: 'Kontak darurat',
-                                subtitle:
-                                    '${(patient?.emergencyContactName ?? '').trim().isEmpty ? '-' : patient!.emergencyContactName} • ${(patient?.emergencyContactPhone ?? '').trim().isEmpty ? '-' : patient!.emergencyContactPhone}',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 22),
-                          Text(
-                            'Ringkasan Kesehatan',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _MenuSection(
-                            isDark: isDark,
-                            items: [
-                              _MenuItemData(
-                                icon: Icons.cake_rounded,
-                                title: 'Tanggal lahir',
-                                subtitle: _formatDate(patient?.dateOfBirth),
-                              ),
-                              _MenuItemData(
-                                icon: Icons.person_outline_rounded,
-                                title: 'Jenis kelamin',
-                                subtitle: (patient?.gender ?? '').trim().isEmpty
-                                    ? 'Belum dilengkapi'
-                                    : patient!.gender,
-                              ),
-                              _MenuItemData(
-                                icon: Icons.home_rounded,
-                                title: 'Alamat pasien',
-                                subtitle: (patient?.address ?? '').trim().isEmpty
-                                    ? 'Belum ada alamat tersimpan'
-                                    : patient!.address,
-                              ),
-                              _MenuItemData(
-                                icon: Icons.description_rounded,
-                                title: 'Catatan medis',
-                                subtitle:
-                                    (patient?.medicalNotes ?? '').trim().isEmpty
-                                        ? 'Belum ada catatan medis'
-                                        : patient!.medicalNotes,
-                              ),
-                              _MenuItemData(
-                                icon: Icons.history_rounded,
-                                title: 'Terakhir diperbarui',
-                                subtitle:
-                                    _formatDate(user?.updatedAt, withTime: true),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 22),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: controller.logout,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.error,
-                                side: BorderSide(
-                                  color: AppColors.error.withValues(alpha: 0.3),
-                                ),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                              ),
-                              icon: const Icon(Icons.logout_rounded),
-                              label: const Text(
-                                'Keluar dari akun',
-                                style: TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            );
-          },
-        ),
+                ),
+              ],
+            ),
+          );
+        }),
       ),
+    );
+  }
+
+  void _openProfileForm(BuildContext context) {
+    controller.prepareProfileForm();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => _ProfileFormSheet(controller: controller),
+    );
+  }
+
+  void _openPasswordForm(BuildContext context) {
+    controller.preparePasswordForm();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => _PasswordFormSheet(controller: controller),
     );
   }
 }
@@ -423,18 +485,18 @@ class _AccountHero extends StatelessWidget {
                   Text(
                     title,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: textColor,
-                        ),
+                      fontWeight: FontWeight.w900,
+                      color: textColor,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: textColor.withValues(alpha: 0.85),
-                          fontWeight: FontWeight.w500,
-                          height: 1.35,
-                        ),
+                      color: textColor.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
+                    ),
                   ),
                 ],
               ),
@@ -455,6 +517,7 @@ class _ProfileCard extends StatelessWidget {
     required this.phone,
     required this.emailVerified,
     required this.statusText,
+    required this.onEdit,
   });
 
   final bool isDark;
@@ -464,11 +527,13 @@ class _ProfileCard extends StatelessWidget {
   final String phone;
   final bool emailVerified;
   final String statusText;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
-    final mutedColor =
-        isDark ? AppColors.darkMutedText : AppColors.lightMutedText;
+    final mutedColor = isDark
+        ? AppColors.darkMutedText
+        : AppColors.lightMutedText;
 
     return Container(
       width: double.infinity,
@@ -557,7 +622,9 @@ class _ProfileCard extends StatelessWidget {
                   statusText,
                   style: TextStyle(
                     fontSize: 12,
-                    color: emailVerified ? AppColors.success : AppColors.warning,
+                    color: emailVerified
+                        ? AppColors.success
+                        : AppColors.warning,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -565,24 +632,126 @@ class _ProfileCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.08)
-                  : const Color(0xFFF3F5F7),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.edit_rounded,
-              color: isDark ? AppColors.darkText : AppColors.lightText,
+          InkWell(
+            onTap: onEdit,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFFF3F5F7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.edit_rounded,
+                color: isDark ? AppColors.darkText : AppColors.lightText,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _QuickActionGrid extends StatelessWidget {
+  const _QuickActionGrid({required this.isDark, required this.actions});
+
+  final bool isDark;
+  final List<_QuickActionData> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: actions
+          .map(
+            (action) => Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: action == actions.first ? 10 : 0,
+                ),
+                child: InkWell(
+                  onTap: action.onTap,
+                  borderRadius: BorderRadius.circular(18),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF12211F) : Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isDark
+                            ? AppColors.darkBorder
+                            : AppColors.lightBorder,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: action.color.withValues(alpha: 0.13),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(action.icon, color: action.color),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                action.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                action.subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: isDark
+                                      ? AppColors.darkMutedText
+                                      : AppColors.lightMutedText,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _QuickActionData {
+  const _QuickActionData({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
 }
 
 class _HealthAlertCard extends StatelessWidget {
@@ -636,13 +805,17 @@ class _HealthAlertCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.35,
-                    color: isDark ? AppColors.darkText : const Color(0xFF7B5B2F),
+                    color: isDark
+                        ? AppColors.darkText
+                        : const Color(0xFF7B5B2F),
                   ),
                 ),
                 const SizedBox(height: 14),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: isDark ? const Color(0xFF111717) : Colors.white,
                     borderRadius: BorderRadius.circular(999),
@@ -654,9 +827,7 @@ class _HealthAlertCard extends StatelessWidget {
                   ),
                   child: Text(
                     actionLabel,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
@@ -673,11 +844,7 @@ class _HealthAlertCard extends StatelessWidget {
                   color: highlightColor.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(28),
                 ),
-                child: Icon(
-                  icon,
-                  size: 44,
-                  color: highlightColor,
-                ),
+                child: Icon(icon, size: 44, color: highlightColor),
               ),
               Positioned(
                 right: -4,
@@ -706,10 +873,7 @@ class _HealthAlertCard extends StatelessWidget {
 }
 
 class _MenuSection extends StatelessWidget {
-  const _MenuSection({
-    required this.isDark,
-    required this.items,
-  });
+  const _MenuSection({required this.isDark, required this.items});
 
   final bool isDark;
   final List<_MenuItemData> items;
@@ -751,10 +915,7 @@ class _MenuSection extends StatelessWidget {
 }
 
 class _MenuTile extends StatelessWidget {
-  const _MenuTile({
-    required this.item,
-    required this.isDark,
-  });
+  const _MenuTile({required this.item, required this.isDark});
 
   final _MenuItemData item;
   final bool isDark;
@@ -762,8 +923,9 @@ class _MenuTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final titleColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final subtitleColor =
-        isDark ? AppColors.darkMutedText : AppColors.lightMutedText;
+    final subtitleColor = isDark
+        ? AppColors.darkMutedText
+        : AppColors.lightMutedText;
 
     return InkWell(
       onTap: item.onTap,
@@ -771,78 +933,534 @@ class _MenuTile extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
         child: Row(
-        children: [
-          Icon(
-            item.icon,
-            size: 28,
-            color: isDark ? Colors.white70 : const Color(0xFF4B4E52),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Text(
-                      item.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: titleColor,
+          children: [
+            Icon(
+              item.icon,
+              size: 28,
+              color: isDark ? Colors.white70 : const Color(0xFF4B4E52),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Text(
+                        item.title,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: titleColor,
+                        ),
                       ),
-                    ),
-                    if (item.badge != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: (item.badgeColor ?? AppColors.primary)
-                              .withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          item.badge!,
-                          style: TextStyle(
-                            color: item.badgeColor ?? AppColors.primary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12,
+                      if (item.badge != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (item.badgeColor ?? AppColors.primary)
+                                .withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            item.badge!,
+                            style: TextStyle(
+                              color: item.badgeColor ?? AppColors.primary,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                if (item.subtitle != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.subtitle!,
-                    style: TextStyle(
-                      color: subtitleColor,
-                      fontSize: 13,
-                      height: 1.35,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    ],
                   ),
+                  if (item.subtitle != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.subtitle!,
+                      style: TextStyle(
+                        color: subtitleColor,
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Icon(
-            Icons.chevron_right_rounded,
-            size: 28,
-            color: isDark ? Colors.white70 : const Color(0xFF61656A),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 28,
+              color: isDark ? Colors.white70 : const Color(0xFF61656A),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+class _ProfileFormSheet extends StatelessWidget {
+  const _ProfileFormSheet({required this.controller});
+
+  final AccountController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.92,
+        minChildSize: 0.58,
+        maxChildSize: 0.96,
+        builder: (context, scrollController) {
+          return ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+            children: [
+              const _SheetHandle(),
+              const SizedBox(height: 18),
+              const _SheetTitle(
+                title: 'Edit Profil',
+                subtitle:
+                    'Perbarui identitas akun dan data kesehatan utama pasien.',
+              ),
+              const SizedBox(height: 16),
+              const _FormSectionTitle('Identitas akun'),
+              _AccountTextField(
+                controller: controller.nameController,
+                label: 'Nama lengkap',
+                required: true,
+                textInputAction: TextInputAction.next,
+              ),
+              _AccountTextField(
+                controller: controller.emailController,
+                label: 'Email',
+                required: true,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+              ),
+              _AccountTextField(
+                controller: controller.phoneController,
+                label: 'Nomor telepon',
+                optional: true,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 8),
+              const _FormSectionTitle('Data kesehatan'),
+              _ProfileDateField(controller: controller),
+              _AccountDropdownField(
+                controller: controller.genderController,
+                label: 'Jenis kelamin',
+                options: const ['laki-laki', 'perempuan'],
+              ),
+              _AccountDropdownField(
+                controller: controller.bloodTypeController,
+                label: 'Golongan darah',
+                options: const ['A', 'B', 'AB', 'O'],
+              ),
+              _AccountTextField(
+                controller: controller.addressController,
+                label: 'Alamat pasien',
+                optional: true,
+                maxLines: 3,
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _AccountTextField(
+                      controller: controller.emergencyContactNameController,
+                      label: 'Kontak darurat',
+                      optional: true,
+                      textInputAction: TextInputAction.next,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _AccountTextField(
+                      controller: controller.emergencyContactPhoneController,
+                      label: 'Telepon darurat',
+                      optional: true,
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ),
+                ],
+              ),
+              _AccountTextField(
+                controller: controller.allergiesController,
+                label: 'Alergi & obat',
+                optional: true,
+                maxLines: 2,
+              ),
+              _AccountTextField(
+                controller: controller.medicalNotesController,
+                label: 'Catatan medis',
+                optional: true,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 8),
+              Obx(
+                () => FilledButton.icon(
+                  onPressed: controller.isSavingProfile.value
+                      ? null
+                      : () async {
+                          final saved = await controller.saveProfile();
+                          if (saved) {
+                            Get.back<void>();
+                          }
+                        },
+                  icon: controller.isSavingProfile.value
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_rounded),
+                  label: Text(
+                    controller.isSavingProfile.value
+                        ? 'Menyimpan...'
+                        : 'Simpan profil',
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PasswordFormSheet extends StatelessWidget {
+  const _PasswordFormSheet({required this.controller});
+
+  final AccountController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+        children: [
+          const _SheetHandle(),
+          const SizedBox(height: 18),
+          const _SheetTitle(
+            title: 'Ubah Password',
+            subtitle: 'Gunakan minimal 8 karakter agar akun tetap aman.',
+          ),
+          const SizedBox(height: 16),
+          Obx(
+            () => _PasswordField(
+              controller: controller.currentPasswordController,
+              label: 'Password saat ini',
+              obscureText: controller.obscureCurrentPassword.value,
+              onToggle: () => controller.obscureCurrentPassword.toggle(),
+            ),
+          ),
+          Obx(
+            () => _PasswordField(
+              controller: controller.newPasswordController,
+              label: 'Password baru',
+              obscureText: controller.obscureNewPassword.value,
+              onToggle: () => controller.obscureNewPassword.toggle(),
+            ),
+          ),
+          Obx(
+            () => _PasswordField(
+              controller: controller.confirmPasswordController,
+              label: 'Konfirmasi password baru',
+              obscureText: controller.obscureConfirmPassword.value,
+              onToggle: () => controller.obscureConfirmPassword.toggle(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Obx(
+            () => FilledButton.icon(
+              onPressed: controller.isChangingPassword.value
+                  ? null
+                  : () async {
+                      final changed = await controller.changePassword();
+                      if (changed) {
+                        Get.back<void>();
+                      }
+                    },
+              icon: controller.isChangingPassword.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.lock_reset_rounded),
+              label: Text(
+                controller.isChangingPassword.value
+                    ? 'Memproses...'
+                    : 'Ubah password',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 42,
+        height: 4,
+        decoration: BoxDecoration(
+          color: const Color(0xFFD8DEE7),
+          borderRadius: BorderRadius.circular(99),
+        ),
+      ),
+    );
+  }
+}
+
+class _SheetTitle extends StatelessWidget {
+  const _SheetTitle({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppColors.lightMutedText,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(onPressed: Get.back, icon: const Icon(Icons.close_rounded)),
+      ],
+    );
+  }
+}
+
+class _FormSectionTitle extends StatelessWidget {
+  const _FormSectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        title,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+      ),
+    );
+  }
+}
+
+class _AccountTextField extends StatelessWidget {
+  const _AccountTextField({
+    required this.controller,
+    required this.label,
+    this.keyboardType,
+    this.textInputAction,
+    this.maxLines = 1,
+    this.required = false,
+    this.optional = false,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final int maxLines;
+  final bool required;
+  final bool optional;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        maxLines: maxLines,
+        decoration: _accountInputDecoration(
+          label: label,
+          required: required,
+          optional: optional,
+        ),
+      ),
+    );
+  }
+}
+
+class _PasswordField extends StatelessWidget {
+  const _PasswordField({
+    required this.controller,
+    required this.label,
+    required this.obscureText,
+    required this.onToggle,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final bool obscureText;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller,
+        obscureText: obscureText,
+        decoration: _accountInputDecoration(label: label).copyWith(
+          suffixIcon: IconButton(
+            onPressed: onToggle,
+            icon: Icon(
+              obscureText
+                  ? Icons.visibility_off_rounded
+                  : Icons.visibility_rounded,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileDateField extends StatelessWidget {
+  const _ProfileDateField({required this.controller});
+
+  final AccountController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        controller: controller.dateOfBirthController,
+        readOnly: true,
+        onTap: () async {
+          final now = DateTime.now();
+          final current = DateTime.tryParse(
+            controller.dateOfBirthController.text,
+          );
+          final selected = await showDatePicker(
+            context: context,
+            initialDate: current ?? DateTime(now.year - 25, now.month, now.day),
+            firstDate: DateTime(now.year - 150),
+            lastDate: now,
+          );
+          if (selected != null) {
+            controller.dateOfBirthController.text = selected
+                .toIso8601String()
+                .split('T')
+                .first;
+          }
+        },
+        decoration: _accountInputDecoration(
+          label: 'Tanggal lahir',
+          optional: true,
+        ).copyWith(suffixIcon: const Icon(Icons.calendar_month_rounded)),
+      ),
+    );
+  }
+}
+
+class _AccountDropdownField extends StatelessWidget {
+  const _AccountDropdownField({
+    required this.controller,
+    required this.label,
+    required this.options,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final List<String> options;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final selected = options.contains(value.text) ? value.text : null;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: DropdownButtonFormField<String>(
+            initialValue: selected,
+            isExpanded: true,
+            decoration: _accountInputDecoration(label: label, optional: true),
+            items: options
+                .map(
+                  (item) =>
+                      DropdownMenuItem<String>(value: item, child: Text(item)),
+                )
+                .toList(),
+            onChanged: (value) => controller.text = value ?? '',
+          ),
+        );
+      },
+    );
+  }
+}
+
+InputDecoration _accountInputDecoration({
+  required String label,
+  bool required = false,
+  bool optional = false,
+}) {
+  return InputDecoration(
+    labelText: required
+        ? '$label *'
+        : optional
+        ? '$label (opsional)'
+        : label,
+    filled: true,
+    fillColor: const Color(0xFFF7F9FC),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+  );
 }
 
 class _FloatingIcon extends StatelessWidget {
@@ -878,10 +1496,7 @@ class _FloatingIcon extends StatelessWidget {
 }
 
 class _HeroBubble extends StatelessWidget {
-  const _HeroBubble({
-    required this.size,
-    required this.color,
-  });
+  const _HeroBubble({required this.size, required this.color});
 
   final double size;
   final Color color;
@@ -891,10 +1506,7 @@ class _HeroBubble extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }

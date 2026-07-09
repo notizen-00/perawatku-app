@@ -46,6 +46,10 @@ class StorageService {
     await _preferences.setString(_userKey, jsonEncode(userJson));
   }
 
+  Future<void> saveUserJson(Map<String, dynamic> userJson) async {
+    await _preferences.setString(_userKey, jsonEncode(userJson));
+  }
+
   Future<void> clearSession() async {
     await _preferences.remove(_tokenKey);
     await _preferences.remove(_userKey);
