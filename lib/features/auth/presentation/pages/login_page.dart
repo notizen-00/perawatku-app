@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/theme/app_colors.dart';
 import '../controllers/auth_controller.dart';
 
 class LoginPage extends GetView<AuthController> {

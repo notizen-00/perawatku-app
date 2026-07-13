@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../patient_member/domain/entities/patient_member_entity.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
@@ -38,7 +39,9 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
               isLoading: controller.isLoadingMembers.value,
               errorMessage: controller.memberErrorMessage.value,
               onReload: controller.loadPatientMembers,
-              onChanged: controller.selectPatientMember,
+              onOpenPicker: () async {
+                await Get.toNamed(AppRoutes.serviceBookingPatientPicker);
+              },
             ),
             const SizedBox(height: 10),
             _ScheduleForm(controller: controller),
@@ -500,7 +503,7 @@ class _PatientMemberPicker extends StatelessWidget {
     required this.isLoading,
     required this.errorMessage,
     required this.onReload,
-    required this.onChanged,
+    required this.onOpenPicker,
   });
 
   final List<PatientMemberEntity> members;
@@ -508,7 +511,7 @@ class _PatientMemberPicker extends StatelessWidget {
   final bool isLoading;
   final String? errorMessage;
   final VoidCallback onReload;
-  final ValueChanged<PatientMemberEntity?> onChanged;
+  final VoidCallback onOpenPicker;
 
   @override
   Widget build(BuildContext context) {
@@ -521,33 +524,23 @@ class _PatientMemberPicker extends StatelessWidget {
     }
 
     if (members.isEmpty) {
-      return InlineError(
-        message: 'Belum ada profil pasien keluarga. Tambahkan dulu di menu Akun.',
-        onRetry: onReload,
+      return _PatientPickerCard(
+        selectedMember: null,
+        label: 'Belum ada profil pasien',
+        description: 'Tambah atau pilih pasien penerima layanan',
+        onOpenPicker: onOpenPicker,
       );
     }
 
-    final value = _matchingMember;
+    final selected = _matchingMember;
 
-    return DropdownButtonFormField<PatientMemberEntity>(
-      value: value,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Profil pasien',
-        prefixIcon: Icon(Icons.group_rounded),
-      ),
-      items: members
-          .map(
-            (member) => DropdownMenuItem(
-              value: member,
-              child: Text(
-                _memberLabel(member),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          )
-          .toList(),
-      onChanged: onChanged,
+    return _PatientPickerCard(
+      selectedMember: selected,
+      label: selected?.name ?? 'Profil pasien',
+      description: selected == null
+          ? 'Pilih pasien penerima layanan'
+          : _memberLabel(selected),
+      onOpenPicker: onOpenPicker,
     );
   }
 
@@ -568,7 +561,102 @@ class _PatientMemberPicker extends StatelessWidget {
 
   String _memberLabel(PatientMemberEntity member) {
     final relationship = member.relationship.trim();
-    return relationship.isEmpty ? member.name : '${member.name} - $relationship';
+    return relationship.isEmpty ? 'Keluarga' : relationship;
+  }
+}
+
+class _PatientPickerCard extends StatelessWidget {
+  const _PatientPickerCard({
+    required this.selectedMember,
+    required this.label,
+    required this.description,
+    required this.onOpenPicker,
+  });
+
+  final PatientMemberEntity? selectedMember;
+  final String label;
+  final String description;
+  final VoidCallback onOpenPicker;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? const Color(0xFF0D1B19)
+            : const Color(0xFFF7FAF8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: selectedMember == null
+              ? const Color(0xFFE7E1D8)
+              : AppColors.primary.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.person_rounded, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: selectedMember == null
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          color: AppColors.lightMutedText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.lightMutedText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton.icon(
+            onPressed: onOpenPicker,
+            icon: const Icon(Icons.group_rounded, size: 18),
+            label: Text(selectedMember == null ? 'Pilih' : 'Ganti'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -219,7 +219,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
       AlertDialog(
         title: const Text('Batalkan pesanan?'),
         content: const Text(
-          'Pesanan yang belum menemukan mitra bisa dibatalkan. Lanjutkan?',
+          'Pesanan yang belum dibayar dan belum diterima mitra bisa dibatalkan. Lanjutkan?',
         ),
         actions: [
           TextButton(
@@ -237,7 +237,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
     if (confirmed == true) {
       await controller.cancelBooking(
         booking.id,
-        reason: 'Dibatalkan oleh pasien sebelum menemukan mitra.',
+        reason: 'Dibatalkan oleh pasien sebelum dibayar dan diterima mitra.',
       );
     }
   }

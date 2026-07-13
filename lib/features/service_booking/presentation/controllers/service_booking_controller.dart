@@ -966,7 +966,7 @@ class ServiceBookingController extends GetxController {
     if (booking != null && !booking.canCancelBeforePartnerFound) {
       AppSnackbar.info(
         'Tidak bisa dibatalkan',
-        'Booking sudah menemukan mitra atau sedang berjalan.',
+        'Booking sudah dibayar, diterima mitra, atau sedang berjalan.',
       );
       return;
     }

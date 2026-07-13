@@ -10,6 +10,7 @@ class ServiceBookingServiceEntity {
     required this.serviceType,
     required this.serviceMode,
     required this.description,
+    required this.image,
     required this.price,
     required this.estimatedDuration,
     required this.requiresAddress,
@@ -27,6 +28,7 @@ class ServiceBookingServiceEntity {
   final String? serviceType;
   final String? serviceMode;
   final String? description;
+  final String? image;
   final String? price;
   final String? estimatedDuration;
   final bool requiresAddress;

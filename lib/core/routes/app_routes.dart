@@ -6,6 +6,9 @@ class AppRoutes {
   static const String search = '/search';
   static const String notifications = '/notifications';
   static const String nurses = '/nurses';
+  static const String serviceDetail = '/service-detail';
+  static const String serviceBookingPatientPicker =
+      '/service-booking-patient-picker';
   static const String serviceBookingDetail = '/service-booking-detail';
   static const String serviceBookingOrderDetail =
       '/service-booking-order-detail';

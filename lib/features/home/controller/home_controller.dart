@@ -257,6 +257,10 @@ class HomeController extends GetxController {
   }
 
   void openMatchmakingForService(ServiceBookingServiceEntity service) {
+    Get.toNamed(AppRoutes.serviceDetail, arguments: service);
+  }
+
+  void proceedWithServiceBooking(ServiceBookingServiceEntity service) {
     if (_isDoctorConsultationService(service)) {
       Get.toNamed(AppRoutes.doctors);
       return;

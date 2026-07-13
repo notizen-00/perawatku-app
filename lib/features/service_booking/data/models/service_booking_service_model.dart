@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import '../../domain/entities/service_booking_service_entity.dart';
 
 class ServiceBookingServiceModel extends ServiceBookingServiceEntity {
@@ -12,6 +14,7 @@ class ServiceBookingServiceModel extends ServiceBookingServiceEntity {
     required super.serviceType,
     required super.serviceMode,
     required super.description,
+    required super.image,
     required super.price,
     required super.estimatedDuration,
     required super.requiresAddress,
@@ -37,19 +40,37 @@ class ServiceBookingServiceModel extends ServiceBookingServiceEntity {
     );
     final rowId = _readInt(json['id']) ?? 0;
     final bookingServiceId = explicitServiceId ?? nestedServiceId ?? rowId;
+    final name =
+        _readString(
+          service['name'] ??
+              json['service_name'] ??
+              json['serviceName'] ??
+              json['name'] ??
+              json['title'] ??
+              json['label'],
+        ) ??
+        'Layanan medis';
+    final image = _readString(
+      service['image'] ??
+          json['image'] ??
+          service['image_url'] ??
+          json['image_url'] ??
+          service['thumbnail'] ??
+          json['thumbnail'] ??
+          service['photo'] ??
+          json['photo'],
+    );
+
+    developer.log(
+      'parsed service image serviceId=$bookingServiceId name="$name" image="$image" '
+      'rootImage="${json['image']}" nestedImage="${service['image']}"',
+      name: 'image-show',
+    );
 
     return ServiceBookingServiceModel(
       id: rowId,
       bookingServiceId: bookingServiceId,
-      name: _readString(
-            service['name'] ??
-                json['service_name'] ??
-                json['serviceName'] ??
-                json['name'] ??
-                json['title'] ??
-                json['label'],
-          ) ??
-          'Layanan medis',
+      name: name,
       categoryId: _readInt(
         json['service_category_id'] ??
             service['service_category_id'] ??
@@ -70,6 +91,7 @@ class ServiceBookingServiceModel extends ServiceBookingServiceEntity {
       ),
       serviceMode: _readString(service['service_mode'] ?? json['service_mode']),
       description: _readString(service['description'] ?? json['description']),
+      image: image,
       price: _readString(
         service['base_price'] ??
             json['base_price'] ??

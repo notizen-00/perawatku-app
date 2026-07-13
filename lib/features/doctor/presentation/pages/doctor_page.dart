@@ -331,8 +331,8 @@ class _DoctorCard extends StatelessWidget {
                             specialization: specialization.isEmpty
                                 ? null
                                 : specialization,
-                            partnerUserId: profile?.userId ?? doctor.id,
-                            doctorPhotoUrl: profile?.photoUrl,
+                            partnerUserId: profile.userId,
+                            doctorPhotoUrl: profile.photoUrl,
                           ),
                         );
                       },

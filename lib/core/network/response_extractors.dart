@@ -15,7 +15,7 @@ List<Map<String, dynamic>> extractListOfMaps(
     return const <Map<String, dynamic>>[];
   }
 
-  final map = Map<String, dynamic>.from(json as Map);
+  final map = Map<String, dynamic>.from(json);
 
   for (final key in preferredKeys) {
     if (!map.containsKey(key)) continue;
@@ -55,7 +55,7 @@ List<Map<String, dynamic>> extractLaravelPaginatedList(dynamic json) {
     return const <Map<String, dynamic>>[];
   }
 
-  final map = Map<String, dynamic>.from(json as Map);
+  final map = Map<String, dynamic>.from(json);
   final directData = map['data'];
 
   if (directData is List) {
@@ -83,4 +83,3 @@ List<Map<String, dynamic>> extractLaravelPaginatedList(dynamic json) {
 
   return extractListOfMaps(json, preferredKeys: const <String>['data']);
 }
-

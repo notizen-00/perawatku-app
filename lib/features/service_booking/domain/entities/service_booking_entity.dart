@@ -96,7 +96,17 @@ class ServiceBookingEntity {
 
   bool get canCancelBeforePartnerFound {
     final normalizedStatus = status.toLowerCase().trim();
-    return assignedPartnerUserId == null &&
+    final hasBeenAccepted = acceptedAt != null && acceptedAt!.trim().isNotEmpty;
+    final isRunningOrAcceptedStatus =
+        normalizedStatus == 'accepted' ||
+        normalizedStatus == 'on_the_way' ||
+        normalizedStatus == 'in_progress' ||
+        normalizedStatus == 'completed' ||
+        normalizedStatus == 'cancelled';
+
+    return !isPaid &&
+        !hasBeenAccepted &&
+        !isRunningOrAcceptedStatus &&
         (normalizedStatus == 'pending' ||
             normalizedStatus == 'scheduled' ||
             normalizedStatus == 'confirmed');

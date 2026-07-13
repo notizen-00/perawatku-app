@@ -188,7 +188,14 @@ class ServiceBookingModel extends ServiceBookingEntity {
             booking['partner_location_updated_at'] ??
             data?['partner_location_updated_at'],
       ),
-      acceptedAt: _readString(booking['accepted_at'] ?? data?['accepted_at']),
+      acceptedAt: _readString(
+        booking['accepted_at'] ??
+            booking['acceptedAt'] ??
+            booking['partner_accepted_at'] ??
+            data?['accepted_at'] ??
+            data?['acceptedAt'] ??
+            data?['partner_accepted_at'],
+      ),
       startedAt: _readString(booking['started_at'] ?? data?['started_at']),
       completedAt: _readString(
         booking['completed_at'] ?? data?['completed_at'],

@@ -295,6 +295,12 @@ Contoh UI data mapping:
 | Butuh alamat          | `service.requires_address`                                                   |
 | Butuh jadwal          | `service.requires_schedule`                                                  |
 
+Catatan harga service booking:
+
+- Untuk layanan non-konsultasi seperti homecare, perawat datang, bidan datang, caregiver, procedure, dan visit, harga pasien memakai `service.base_price` dari admin.
+- Harga custom di `partner_services.price` / `custom_price` tidak dipakai sebagai harga pasien untuk service booking non-konsultasi.
+- Konsultasi dokter tetap memakai flow konsultasi dan harga custom dokter dari `partner_profile.consultation_fee`.
+
 Contoh user pilih category Nurse:
 
 ```http
@@ -707,6 +713,25 @@ Detail booking:
 GET /api/patient/service-bookings/{serviceBooking}
 ```
 
+Batalkan booking sebelum dibayar dan sebelum diterima mitra:
+
+```http
+PATCH /api/patient/service-bookings/{serviceBooking}/cancel
+```
+
+Field `PATCH /api/patient/service-bookings/{serviceBooking}/cancel`:
+
+| Field   | Required | Type   | Rule/Catatan                              |
+| ------- | -------- | ------ | ----------------------------------------- |
+| `notes` | Tidak    | string | alasan pembatalan, maksimal 1000 karakter |
+
+Catatan:
+
+- Hanya bisa dipakai oleh pasien pemilik booking.
+- Hanya bisa saat `status=pending`, `accepted_at=null`, dan payment belum `paid`.
+- Jika payment masih `pending`, backend mengubah payment menjadi `expired`.
+- Setelah sukses, booking menjadi `cancelled` dan tidak bisa dibayar lagi.
+
 Bayar booking layanan:
 
 ```http
@@ -1016,6 +1041,13 @@ Query `GET /api/patient/products`:
 | `search`                | Tidak    | string  | max 100                                                      |
 | `per_page`              | Tidak    | integer | 1-100                                                        |
 
+Catatan harga produk:
+
+- `GET /api/patient/products/global` menampilkan `catalog_price` sebagai harga jual seragam per SKU.
+- `catalog_price` berasal dari `products.admin_price` yang dikelola admin. Jika data lama belum punya `admin_price`, backend fallback ke harga aktif terendah per SKU.
+- `pharmacy_options.*.price` juga memakai harga katalog seragam. Harga custom apotik tetap tersedia sebagai `pharmacy_options.*.pharmacy_price` untuk audit/debug, bukan untuk checkout pasien.
+- Saat order dibuat, `order_items.unit_price` memakai harga katalog/admin, bukan `products.price` milik apotik yang terpilih matchmaking.
+
 Order:
 
 ```http
@@ -1097,7 +1129,6 @@ Response `data` order berisi field utama:
 GET /api/patient/balance
 GET /api/patient/balance/history
 POST /api/patient/balance/topup
-PATCH /api/patient/balance/topup/confirm
 ```
 
 Query `GET /api/patient/balance/history`:
@@ -1115,12 +1146,7 @@ Field `POST /api/patient/balance/topup`:
 | `amount`         | Ya       | numeric | minimal 10000             |
 | `payment_method` | Ya       | enum    | saat ini hanya `midtrans` |
 
-Field `PATCH /api/patient/balance/topup/confirm`:
-
-| Field              | Required | Type   | Rule/Catatan           |
-| ------------------ | -------- | ------ | ---------------------- |
-| `transaction_uuid` | Ya       | string | UUID transaksi topup   |
-| `status`           | Ya       | enum   | `success`, `completed` |
+Endpoint lama `PATCH /api/patient/balance/topup/confirm` dinonaktifkan dan selalu ditolak. Flutter tidak boleh mengubah saldo berdasarkan hasil UI pembayaran. Saldo hanya boleh bertambah setelah backend menerima dan memverifikasi callback payment gateway. Setelah pembayaran, refresh `GET /api/patient/balance` dan history untuk memperoleh status server.
 
 ## Notifikasi
 
@@ -1673,24 +1699,25 @@ Bagian ini adalah kamus field yang umum muncul di response API. Field relasi sep
 
 ### Product
 
-| Field                   | Type                | Catatan                                                      |
-| ----------------------- | ------------------- | ------------------------------------------------------------ |
-| `id`                    | integer             | ID produk                                                    |
-| `pharmacy_id`           | integer             | ID apotik                                                    |
-| `sku`                   | string/null         | SKU produk                                                   |
-| `name`                  | string              | nama produk                                                  |
-| `type`                  | enum/string         | `obat`, `produk_kesehatan`, `layanan`, `sewa_alat_kesehatan` |
-| `category`              | string/null         | kategori                                                     |
-| `description`           | string/null         | deskripsi                                                    |
-| `price`                 | decimal string      | harga jual                                                   |
-| `cost_price`            | decimal string/null | harga modal                                                  |
-| `stock`                 | integer             | stok                                                         |
-| `minimum_stock_alert`   | integer/null        | batas stok minimum                                           |
-| `track_stock`           | boolean             | apakah stok dilacak                                          |
-| `requires_prescription` | boolean             | butuh resep                                                  |
-| `is_active`             | boolean             | produk aktif                                                 |
-| `image`                 | string/null         | path gambar                                                  |
-| `pharmacy`              | object/null         | relasi apotik                                                |
+| Field                   | Type                | Catatan                                                                                |
+| ----------------------- | ------------------- | -------------------------------------------------------------------------------------- |
+| `id`                    | integer             | ID produk                                                                              |
+| `pharmacy_id`           | integer             | ID apotik                                                                              |
+| `sku`                   | string/null         | SKU produk                                                                             |
+| `name`                  | string              | nama produk                                                                            |
+| `type`                  | enum/string         | `obat`, `produk_kesehatan`, `layanan`, `sewa_alat_kesehatan`                           |
+| `category`              | string/null         | kategori                                                                               |
+| `description`           | string/null         | deskripsi                                                                              |
+| `price`                 | decimal string      | harga input apotik/legacy; checkout pasien tidak memakai field ini sebagai harga final |
+| `admin_price`           | decimal string/null | harga jual katalog dari admin untuk semua apotik dengan SKU yang sama                  |
+| `cost_price`            | decimal string/null | harga modal                                                                            |
+| `stock`                 | integer             | stok                                                                                   |
+| `minimum_stock_alert`   | integer/null        | batas stok minimum                                                                     |
+| `track_stock`           | boolean             | apakah stok dilacak                                                                    |
+| `requires_prescription` | boolean             | butuh resep                                                                            |
+| `is_active`             | boolean             | produk aktif                                                                           |
+| `image`                 | string/null         | path gambar                                                                            |
+| `pharmacy`              | object/null         | relasi apotik                                                                          |
 
 ### Order
 
@@ -1718,18 +1745,18 @@ Bagian ini adalah kamus field yang umum muncul di response API. Field relasi sep
 
 ### Order Item
 
-| Field          | Type                | Catatan              |
-| -------------- | ------------------- | -------------------- |
-| `id`           | integer             | ID item              |
-| `order_id`     | integer             | ID order             |
-| `product_id`   | integer/null        | ID produk            |
-| `product_name` | string              | snapshot nama produk |
-| `unit_price`   | decimal string      | harga satuan         |
-| `unit_cost`    | decimal string/null | modal satuan         |
-| `quantity`     | integer             | jumlah               |
-| `total_price`  | decimal string      | total harga item     |
-| `total_cost`   | decimal string/null | total modal          |
-| `product`      | object/null         | relasi produk        |
+| Field          | Type                | Catatan                                        |
+| -------------- | ------------------- | ---------------------------------------------- |
+| `id`           | integer             | ID item                                        |
+| `order_id`     | integer             | ID order                                       |
+| `product_id`   | integer/null        | ID produk                                      |
+| `product_name` | string              | snapshot nama produk                           |
+| `unit_price`   | decimal string      | snapshot harga katalog/admin saat order dibuat |
+| `unit_cost`    | decimal string/null | modal satuan                                   |
+| `quantity`     | integer             | jumlah                                         |
+| `total_price`  | decimal string      | total harga item                               |
+| `total_cost`   | decimal string/null | total modal                                    |
+| `product`      | object/null         | relasi produk                                  |
 
 ### App Notification
 
@@ -1777,14 +1804,15 @@ Bagian ini adalah kamus field yang umum muncul di response API. Field relasi sep
 8. Tampilkan form jadwal jika `requires_schedule=true`.
 9. Buat booking via `POST /api/patient/service-bookings`.
 10. Tampilkan status `Menunggu konfirmasi mitra`; response awal punya `assigned_partner_user_id` dan `matchmaking_status=waiting_partner_acceptance`.
-11. Bayar booking via `PATCH /api/patient/service-bookings/{id}/pay`.
-12. Saat status `on_the_way`, buka map dengan snapshot `GET /api/patient/service-bookings/{id}/tracking`, lalu subscribe ke `private-service-booking.{id}.tracking`.
-13. Setelah layanan selesai di lapangan, pasien konfirmasi via `PATCH /api/patient/service-bookings/{id}/confirm-completion`; wallet mitra otomatis dikreditkan jika belum pernah dibayarkan.
-14. Setelah mitra menerima dan pembayaran berhasil, polling/detail booking atau tunggu notifikasi status untuk melihat perjalanan layanan.
-15. Subscribe ke `private-user.{userId}.notifications` untuk menerima notifikasi realtime.
-16. Untuk chat konsultasi, subscribe ke `private-consultation.{consultationId}`.
-17. Saat mengirim pesan konsultasi, panggil `POST /api/patient/consultations/{consultation}/messages`; penerima akan dapat event `chat.message.created`.
-18. Panggil `GET /api/shared/notifications/unread-count` untuk badge jumlah notifikasi.
+11. Jika pasien ingin batal sebelum mitra menerima dan sebelum bayar, panggil `PATCH /api/patient/service-bookings/{id}/cancel`.
+12. Bayar booking via `PATCH /api/patient/service-bookings/{id}/pay`.
+13. Saat status `on_the_way`, buka map dengan snapshot `GET /api/patient/service-bookings/{id}/tracking`, lalu subscribe ke `private-service-booking.{id}.tracking`.
+14. Setelah layanan selesai di lapangan, pasien konfirmasi via `PATCH /api/patient/service-bookings/{id}/confirm-completion`; wallet mitra otomatis dikreditkan jika belum pernah dibayarkan.
+15. Setelah mitra menerima dan pembayaran berhasil, polling/detail booking atau tunggu notifikasi status untuk melihat perjalanan layanan.
+16. Subscribe ke `private-user.{userId}.notifications` untuk menerima notifikasi realtime.
+17. Untuk chat konsultasi, subscribe ke `private-consultation.{consultationId}`.
+18. Saat mengirim pesan konsultasi, panggil `POST /api/patient/consultations/{consultation}/messages`; penerima akan dapat event `chat.message.created`.
+19. Panggil `GET /api/shared/notifications/unread-count` untuk badge jumlah notifikasi.
 
 ## Debug WebSocket
 
