@@ -104,6 +104,9 @@ class ServiceBookingController extends GetxController {
   int _categoryServicesRequestId = 0;
   bool _isRefreshingServiceCatalog = false;
   Timer? _bookingDetailPollingTimer;
+  String? _pendingCreateBookingFeedbackTitle;
+  String? _pendingCreateBookingFeedbackMessage;
+  bool _pendingCreateBookingFeedbackIsError = false;
   final Map<String, List<ServiceBookingServiceEntity>> _servicesByCategoryKey =
       {};
 
@@ -708,55 +711,66 @@ class ServiceBookingController extends GetxController {
     return available.first;
   }
 
-  Future<ServiceBookingEntity?> createBooking() async {
+  Future<ServiceBookingEntity?> createBooking({
+    bool showSuccessSnackbar = true,
+    bool showFailureSnackbar = true,
+  }) async {
+    _clearPendingCreateBookingFeedback();
     final service = selectedService.value;
     final patientMember = selectedPatientMember.value;
 
     if (service == null) {
-      AppSnackbar.info(
+      _handleCreateBookingFeedback(
         'Pilih layanan',
         'Pilih layanan homecare dari katalog backend terlebih dahulu.',
+        showSnackbar: showFailureSnackbar,
       );
       return null;
     }
 
     if (service.bookingServiceId <= 0) {
-      AppSnackbar.error(
+      _handleCreateBookingFeedback(
         'Layanan tidak valid',
         'ID layanan dari katalog backend kosong. Muat ulang katalog layanan.',
+        showSnackbar: showFailureSnackbar,
+        isError: true,
       );
       return null;
     }
 
     if (patientMember == null) {
-      AppSnackbar.info(
+      _handleCreateBookingFeedback(
         'Pilih profil pasien',
         'Pilih profil pasien keluarga yang akan menerima layanan.',
+        showSnackbar: showFailureSnackbar,
       );
       return null;
     }
 
     if (scheduledAtController.text.trim().isEmpty) {
-      AppSnackbar.info(
+      _handleCreateBookingFeedback(
         'Pilih tanggal kunjungan',
         'Tentukan jadwal sebelum membuat booking layanan ini.',
+        showSnackbar: showFailureSnackbar,
       );
       return null;
     }
 
     final visitCount = _readVisitCount();
     if (isRecurringSchedule && (visitCount == null || visitCount < 2)) {
-      AppSnackbar.info(
+      _handleCreateBookingFeedback(
         'Jumlah kunjungan belum valid',
         'Isi minimal 2 kunjungan untuk jadwal mingguan atau bulanan.',
+        showSnackbar: showFailureSnackbar,
       );
       return null;
     }
 
     if (isRecurringSchedule && visitCount != null && visitCount > 52) {
-      AppSnackbar.info(
+      _handleCreateBookingFeedback(
         'Jumlah kunjungan terlalu banyak',
         'Maksimal 52 kunjungan untuk jadwal mingguan atau bulanan.',
+        showSnackbar: showFailureSnackbar,
       );
       return null;
     }
@@ -779,23 +793,73 @@ class ServiceBookingController extends GetxController {
       latestBooking.value = booking;
       _refreshActivities();
 
-      AppSnackbar.success(
-        'Booking dibuat',
-        'Detail booking sedang dibuka.',
-      );
+      if (showSuccessSnackbar) {
+        AppSnackbar.success(
+          'Booking dibuat',
+          'Detail booking sedang dibuka.',
+        );
+      }
       return booking;
     } on AppException catch (error) {
-      AppSnackbar.error('Booking gagal', error.message);
+      _handleCreateBookingFeedback(
+        'Booking gagal',
+        error.message,
+        showSnackbar: showFailureSnackbar,
+        isError: true,
+      );
       return null;
     } catch (_) {
-      AppSnackbar.error(
+      _handleCreateBookingFeedback(
         'Booking gagal',
         'Tidak bisa membuat booking layanan saat ini.',
+        showSnackbar: showFailureSnackbar,
+        isError: true,
       );
       return null;
     } finally {
       isCreatingBooking.value = false;
     }
+  }
+
+  void showPendingCreateBookingFeedback() {
+    final title = _pendingCreateBookingFeedbackTitle;
+    final message = _pendingCreateBookingFeedbackMessage;
+    if (title == null || message == null) {
+      return;
+    }
+
+    if (_pendingCreateBookingFeedbackIsError) {
+      AppSnackbar.error(title, message);
+    } else {
+      AppSnackbar.info(title, message);
+    }
+    _clearPendingCreateBookingFeedback();
+  }
+
+  void _handleCreateBookingFeedback(
+    String title,
+    String message, {
+    required bool showSnackbar,
+    bool isError = false,
+  }) {
+    if (showSnackbar) {
+      if (isError) {
+        AppSnackbar.error(title, message);
+      } else {
+        AppSnackbar.info(title, message);
+      }
+      return;
+    }
+
+    _pendingCreateBookingFeedbackTitle = title;
+    _pendingCreateBookingFeedbackMessage = message;
+    _pendingCreateBookingFeedbackIsError = isError;
+  }
+
+  void _clearPendingCreateBookingFeedback() {
+    _pendingCreateBookingFeedbackTitle = null;
+    _pendingCreateBookingFeedbackMessage = null;
+    _pendingCreateBookingFeedbackIsError = false;
   }
 
   Future<void> openLatestBookingDetail() async {
@@ -869,7 +933,7 @@ class ServiceBookingController extends GetxController {
       }
 
       await _midtransService.startPayment(snapToken: snapToken);
-      await refreshLatestBooking(showSuccessWhenPaid: false);
+      await refreshLatestBooking(showSnackbar: false);
     } on AppException catch (error) {
       AppSnackbar.error('Pembayaran gagal', error.message);
     } catch (_) {
@@ -882,10 +946,12 @@ class ServiceBookingController extends GetxController {
     }
   }
 
-  Future<void> refreshLatestBooking({bool showSuccessWhenPaid = true}) async {
+  Future<ServiceBookingEntity?> refreshLatestBooking({
+    bool showSnackbar = true,
+  }) async {
     final bookingId = latestBooking.value?.id;
     if (bookingId == null || bookingId == 0) {
-      return;
+      return null;
     }
 
     isRefreshingBooking.value = true;
@@ -893,26 +959,32 @@ class ServiceBookingController extends GetxController {
     try {
       final booking = await _getBookingUseCase(bookingId);
       latestBooking.value = booking;
+      if (bookingDetail.value?.id == booking.id) {
+        bookingDetail.value = booking;
+      }
       _refreshActivities();
 
-      if (booking.isPaid && showSuccessWhenPaid) {
+      if (booking.isPaid && showSnackbar) {
         AppSnackbar.success(
           'Pembayaran terverifikasi',
           'Pesanan sudah bisa diproses oleh mitra.',
         );
-      } else if (!booking.isPaid && showSuccessWhenPaid) {
+      } else if (!booking.isPaid && showSnackbar) {
         AppSnackbar.info(
           'Masih menunggu pembayaran',
           'Selesaikan pembayaran dulu sebelum pesanan diproses.',
         );
       }
+      return booking;
     } on AppException catch (error) {
       AppSnackbar.error('Refresh gagal', error.message);
+      return null;
     } catch (_) {
       AppSnackbar.error(
         'Refresh gagal',
         'Status booking belum bisa diperbarui.',
       );
+      return null;
     } finally {
       isRefreshingBooking.value = false;
     }
@@ -1053,16 +1125,26 @@ class ServiceBookingController extends GetxController {
 
   Future<void> _handlePaymentFinished(TransactionResult result) async {
     final status = result.status.toLowerCase();
+    isOpeningPayment.value = false;
+    final refreshedBooking = await refreshLatestBooking(showSnackbar: false);
+    var booking = refreshedBooking ?? latestBooking.value;
 
-    if (status == 'settlement' || status == 'capture') {
+    if (status == 'pending' && booking?.isPaid != true) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      booking = await refreshLatestBooking(showSnackbar: false) ?? booking;
+    }
+
+    if (booking?.isPaid == true ||
+        status == 'settlement' ||
+        status == 'capture') {
       AppSnackbar.success(
         'Pembayaran berhasil',
-        'Pesanan akan diproses setelah status backend terverifikasi.',
+        'Pesanan sudah bisa diproses oleh mitra.',
       );
     } else if (status == 'pending') {
       AppSnackbar.info(
         'Pembayaran tertunda',
-        'Status booking akan berubah setelah pembayaran masuk.',
+        'Silakan selesaikan pembayaran atau coba bayar ulang.',
       );
     } else if (status == 'cancel' || status == 'deny' || status == 'expire') {
       AppSnackbar.error(
@@ -1070,8 +1152,6 @@ class ServiceBookingController extends GetxController {
         result.message ?? 'Silakan coba lagi dengan metode pembayaran lain.',
       );
     }
-
-    await refreshLatestBooking(showSuccessWhenPaid: true);
   }
 
   void _refreshActivities() {

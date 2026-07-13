@@ -17,6 +17,9 @@ class ServiceBookingEntity {
     required this.discountAmount,
     required this.transportFee,
     required this.mealFee,
+    required this.extraFeeTotal,
+    required this.extraFeeApplied,
+    required this.feeMessages,
     required this.visitPlan,
     required this.recurrence,
     required this.visitCount,
@@ -55,6 +58,9 @@ class ServiceBookingEntity {
   final String? discountAmount;
   final String? transportFee;
   final String? mealFee;
+  final String? extraFeeTotal;
+  final bool extraFeeApplied;
+  final List<String> feeMessages;
   final String? visitPlan;
   final String? recurrence;
   final int? visitCount;

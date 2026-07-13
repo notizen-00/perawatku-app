@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../domain/entities/service_booking_entity.dart';
 
 class ServiceBookingModel extends ServiceBookingEntity {
@@ -19,6 +21,9 @@ class ServiceBookingModel extends ServiceBookingEntity {
     required super.discountAmount,
     required super.transportFee,
     required super.mealFee,
+    required super.extraFeeTotal,
+    required super.extraFeeApplied,
+    required super.feeMessages,
     required super.visitPlan,
     required super.recurrence,
     required super.visitCount,
@@ -59,6 +64,27 @@ class ServiceBookingModel extends ServiceBookingEntity {
         _readMap(booking['pricing']) ??
         _readMap(data?['pricing']) ??
         _readMap(root['pricing']) ??
+        <String, dynamic>{};
+    final feePolicySnapshot =
+        _readMap(booking['fee_policy_snapshot']) ??
+        _readMap(booking['service_booking_fee_snapshot']) ??
+        _readMap(booking['service_booking_fee']) ??
+        _readMap(data?['fee_policy_snapshot']) ??
+        _readMap(data?['service_booking_fee_snapshot']) ??
+        _readMap(data?['service_booking_fee']) ??
+        _readMap(pricing['fee_policy_snapshot']) ??
+        _readMap(pricing['service_booking_fee_snapshot']) ??
+        _readMap(pricing['service_booking_fee']) ??
+        _readMap(root['fee_policy_snapshot']) ??
+        _readMap(root['service_booking_fee_snapshot']) ??
+        _readMap(root['service_booking_fee']) ??
+        (pricing.isEmpty ? null : pricing) ??
+        <String, dynamic>{};
+    final extraFees =
+        _readMap(pricing['extra_fees']) ??
+        _readMap(booking['extra_fees']) ??
+        _readMap(data?['extra_fees']) ??
+        _readMap(root['extra_fees']) ??
         <String, dynamic>{};
     final transaction =
         _readMap(booking['transaction']) ??
@@ -107,6 +133,34 @@ class ServiceBookingModel extends ServiceBookingEntity {
         _readMap(data?['assigned_partner_profile']) ??
         _readMap(root['assigned_partner_profile']) ??
         <String, dynamic>{};
+    final visitPlan = _readString(booking['visit_plan'] ?? data?['visit_plan']);
+    final recurrence = _readString(booking['recurrence'] ?? data?['recurrence']);
+    final visitCount = _readInt(
+      booking['visit_count'] ?? pricing['visit_count'] ?? data?['visit_count'],
+    );
+    final careMode = _readString(booking['care_mode'] ?? data?['care_mode']);
+    final distanceKm = _readDouble(
+      booking['distance_km'] ??
+          data?['distance_km'] ??
+          pricing['distance_km'] ??
+          matchmakingJson?['distance_km'],
+    );
+    final transportFee = _resolveTransportFee(
+      explicitTransportFee:
+          booking['transport_fee'] ?? pricing['transport_fee'],
+      extraFees: extraFees,
+      feePolicySnapshot: feePolicySnapshot,
+      distanceKm: distanceKm,
+      visitCount: visitCount,
+      careMode: careMode,
+    );
+    final extraTransportFee = _readExtraTransportFee(extraFees);
+    final feeMessages = _resolveFeeMessages(
+      explicitMessages: pricing['fee_messages'] ??
+          booking['fee_messages'] ??
+          data?['fee_messages'],
+      extraFees: extraFees,
+    );
 
     return ServiceBookingModel(
       id: _readInt(booking['id']) ?? 0,
@@ -148,25 +202,29 @@ class ServiceBookingModel extends ServiceBookingEntity {
       discountAmount: _readString(
         booking['discount_amount'] ?? pricing['discount_amount'],
       ),
-      transportFee: _readString(
-        booking['transport_fee'] ?? pricing['transport_fee'],
-      ),
+      transportFee: transportFee,
       mealFee: _readString(booking['meal_fee'] ?? pricing['meal_fee']),
-      visitPlan: _readString(booking['visit_plan'] ?? data?['visit_plan']),
-      recurrence: _readString(booking['recurrence'] ?? data?['recurrence']),
-      visitCount: _readInt(
-        booking['visit_count'] ?? pricing['visit_count'] ?? data?['visit_count'],
+      extraFeeTotal: _readString(
+        pricing['extra_fee_total'] ??
+            booking['extra_fee_total'] ??
+            data?['extra_fee_total'] ??
+            extraTransportFee,
       ),
-      careMode: _readString(booking['care_mode'] ?? data?['care_mode']),
+      extraFeeApplied: _readBool(
+        pricing['extra_fee_applied'] ??
+            booking['extra_fee_applied'] ??
+            data?['extra_fee_applied'],
+      ) ||
+          (extraTransportFee != null && extraTransportFee > 0),
+      feeMessages: feeMessages,
+      visitPlan: visitPlan,
+      recurrence: recurrence,
+      visitCount: visitCount,
+      careMode: careMode,
       locationType: _readString(
         booking['location_type'] ?? data?['location_type'],
       ),
-      distanceKm: _readDouble(
-        booking['distance_km'] ??
-            data?['distance_km'] ??
-            pricing['distance_km'] ??
-            matchmakingJson?['distance_km'],
-      ),
+      distanceKm: distanceKm,
       paymentStatus: _readString(
         booking['payment_status'] ??
             booking['transaction_status'] ??
@@ -252,6 +310,15 @@ class ServiceBookingModel extends ServiceBookingEntity {
       return Map<String, dynamic>.from(value);
     }
 
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+      } catch (_) {}
+    }
+
     return null;
   }
 
@@ -272,12 +339,168 @@ class ServiceBookingModel extends ServiceBookingEntity {
     return double.tryParse(value?.toString() ?? '');
   }
 
+  static bool _readBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final text = value?.toString().toLowerCase().trim();
+    return text == 'true' || text == '1' || text == 'yes';
+  }
+
   static String? _readString(dynamic value) {
     final text = value?.toString().trim();
     if (text == null || text.isEmpty) {
       return null;
     }
     return text;
+  }
+
+  static List<String> _readStringList(dynamic value) {
+    if (value is List) {
+      return value
+          .map((item) => item?.toString().trim())
+          .whereType<String>()
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+
+    final text = _readString(value);
+    if (text == null) {
+      return const <String>[];
+    }
+    return <String>[text];
+  }
+
+  static List<String> _resolveFeeMessages({
+    required dynamic explicitMessages,
+    required Map<String, dynamic> extraFees,
+  }) {
+    final messages = _readStringList(explicitMessages).toList();
+    final transport = _readMap(extraFees['transport']);
+    final transportMessage = _readString(transport?['message']);
+    if (transportMessage != null && !messages.contains(transportMessage)) {
+      messages.add(transportMessage);
+    }
+
+    final meal = _readMap(extraFees['meal']);
+    final mealMessage = _readString(meal?['message']);
+    if (mealMessage != null && !messages.contains(mealMessage)) {
+      messages.add(mealMessage);
+    }
+    return messages;
+  }
+
+  static String? _resolveTransportFee({
+    required dynamic explicitTransportFee,
+    required Map<String, dynamic> extraFees,
+    required Map<String, dynamic> feePolicySnapshot,
+    required double? distanceKm,
+    required int? visitCount,
+    required String? careMode,
+  }) {
+    final explicit = _readDouble(explicitTransportFee);
+    final extraTransport = _readExtraTransportFee(extraFees);
+    if ((explicit == null || explicit <= 0) &&
+        extraTransport != null &&
+        extraTransport > 0) {
+      return extraTransport.toStringAsFixed(2);
+    }
+
+    final computed = _computeTransportFeeFromPolicy(
+      feePolicySnapshot: feePolicySnapshot,
+      distanceKm: distanceKm,
+      visitCount: visitCount,
+      careMode: careMode,
+    );
+
+    if ((explicit == null || explicit <= 0) &&
+        computed != null &&
+        computed > 0) {
+      return computed.toStringAsFixed(2);
+    }
+
+    return _readString(explicitTransportFee);
+  }
+
+  static double? _readExtraTransportFee(Map<String, dynamic> extraFees) {
+    final transport = _readMap(extraFees['transport']);
+    if (transport == null) {
+      return null;
+    }
+
+    final applied = _readBool(transport['applied']);
+    final amount = _readDouble(transport['amount']);
+    if (applied && amount != null && amount > 0) {
+      return amount;
+    }
+    return null;
+  }
+
+  static double? _computeTransportFeeFromPolicy({
+    required Map<String, dynamic> feePolicySnapshot,
+    required double? distanceKm,
+    required int? visitCount,
+    required String? careMode,
+  }) {
+    if (feePolicySnapshot.isEmpty || distanceKm == null) {
+      return null;
+    }
+
+    final normalizedCareMode = careMode?.toLowerCase().trim();
+    if (normalizedCareMode == 'live_in') {
+      return null;
+    }
+
+    final transportPolicy = _readMap(feePolicySnapshot['transport']) ??
+        _readMap(feePolicySnapshot['transport_fee']) ??
+        _readMap(feePolicySnapshot['service_booking_fee']) ??
+        _readMap(feePolicySnapshot['fees']) ??
+        feePolicySnapshot;
+    final thresholdKm = _readFirstDouble(transportPolicy, const [
+      'transport_distance_threshold_km',
+      'transport_free_distance_km',
+      'transport_threshold_km',
+      'distance_threshold_km',
+      'max_distance_without_transport_km',
+      'free_distance_km',
+      'threshold_km',
+      'max_distance_km',
+      'transport_min_distance_km',
+      'minimum_transport_distance_km',
+      'min_distance_km',
+    ]);
+    final feePerVisit = _readFirstDouble(transportPolicy, const [
+      'transport_fee_per_visit',
+      'transport_fee_amount',
+      'transport_fee_after_threshold',
+      'additional_transport_fee',
+      'additional_fee',
+      'transport_amount',
+      'fee_per_visit',
+      'fee',
+      'amount',
+      'price',
+    ]);
+
+    if (thresholdKm == null ||
+        feePerVisit == null ||
+        distanceKm <= thresholdKm) {
+      return null;
+    }
+
+    return feePerVisit * (visitCount ?? 1);
+  }
+
+  static double? _readFirstDouble(
+    Map<String, dynamic> json,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = _readDouble(json[key]);
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
   }
 
   static DateTime? _readDateTime(dynamic value) {

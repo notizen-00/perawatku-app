@@ -520,6 +520,13 @@ class _ServiceBookingOrderDetailPageState
                   ),
                 ),
                 _DetailRow(
+                  label: 'Biaya tambahan',
+                  value: CurrencyFormatter.formatRupiahFromString(
+                    booking.extraFeeTotal,
+                    emptyValue: '-',
+                  ),
+                ),
+                _DetailRow(
                   label: 'Total',
                   value: CurrencyFormatter.formatRupiahFromString(
                     booking.totalAmount,
@@ -558,6 +565,10 @@ class _ServiceBookingOrderDetailPageState
               isDark: isDark,
             ),
             const SizedBox(height: 12),
+            if (booking.extraFeeApplied || booking.feeMessages.isNotEmpty) ...[
+              _FeeMessageSection(booking: booking, isDark: isDark),
+              const SizedBox(height: 12),
+            ],
             _MatchmakingSection(booking: booking, isDark: isDark),
           ],
         );
@@ -888,6 +899,15 @@ class _PricingBreakdownCard extends StatelessWidget {
             value: _money(booking.transportFee),
           ),
           _PricingLine(label: 'Uang makan', value: _money(booking.mealFee)),
+          if (booking.extraFeeApplied || booking.extraFeeTotal != null)
+            _PricingLine(
+              label: 'Biaya tambahan',
+              value: _money(booking.extraFeeTotal),
+            ),
+          if (booking.feeMessages.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _FeeMessageList(messages: booking.feeMessages, isDark: isDark),
+          ],
           if (booking.distanceKm != null || booking.visitCount != null) ...[
             const SizedBox(height: 8),
             Text(
@@ -958,6 +978,69 @@ class _PricingLine extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _FeeMessageSection extends StatelessWidget {
+  const _FeeMessageSection({required this.booking, required this.isDark});
+
+  final ServiceBookingEntity booking;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final messages = booking.feeMessages.isEmpty
+        ? const <String>['Ada biaya tambahan sesuai pengaturan admin.']
+        : booking.feeMessages;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: isDark ? 0.16 : 0.10),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppColors.warning.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, color: AppColors.warning),
+          const SizedBox(width: 10),
+          Expanded(child: _FeeMessageList(messages: messages, isDark: isDark)),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeeMessageList extends StatelessWidget {
+  const _FeeMessageList({required this.messages, required this.isDark});
+
+  final List<String> messages;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final message in messages)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Text(
+              message,
+              style: TextStyle(
+                color: isDark ? AppColors.darkText : AppColors.lightText,
+                fontSize: 12.5,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart';
 
+import '../../../../core/helpers/app_snackbar.dart';
 import '../../../../core/helpers/currency_formatter.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/entities/service_booking_entity.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
 import '../controllers/service_booking_controller.dart';
+import 'service_booking_loading_page.dart';
 import '../widgets/service_booking_panel.dart';
 
 class ServiceBookingCheckoutPage extends StatefulWidget {
@@ -228,11 +229,21 @@ class _CheckoutBottomBar extends StatelessWidget {
   }
 
   Future<void> _checkout(BuildContext context) async {
-    final loadingFuture = Get.dialog<void>(
-      const _CheckoutLoadingDialog(),
-      barrierDismissible: false,
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final loadingFuture = navigator.push<void>(
+      MaterialPageRoute(
+        builder: (_) => const ServiceBookingLoadingPage(
+          title: 'Sedang mencari partner',
+          subtitle:
+              'Checkout sedang diproses. Kami menghitung biaya layanan dan mencarikan mitra terdekat yang tersedia.',
+        ),
+      ),
     );
-    final createFuture = controller.createBooking();
+    await Future<void>.delayed(const Duration(milliseconds: 320));
+    final createFuture = controller.createBooking(
+      showSuccessSnackbar: false,
+      showFailureSnackbar: false,
+    );
 
     final results = await Future.wait<Object?>([
       createFuture,
@@ -242,15 +253,17 @@ class _CheckoutBottomBar extends StatelessWidget {
     final serviceName = controller.selectedService.value?.name;
     final patientName = controller.selectedPatientMember.value?.name;
 
-    if (Get.isDialogOpen == true) {
-      Get.back<void>();
+    if (navigator.canPop()) {
+      navigator.pop();
     }
     await loadingFuture;
 
     if (booking == null) {
+      controller.showPendingCreateBookingFeedback();
       return;
     }
 
+    AppSnackbar.success('Booking dibuat', 'Detail booking sedang dibuka.');
     await Get.offNamed(
       AppRoutes.serviceBookingDetail,
       arguments: {
@@ -271,70 +284,6 @@ class _CheckoutBottomBar extends StatelessWidget {
     return CurrencyFormatter.formatRupiahFromString(
       service.price,
       emptyValue: 'Menyesuaikan',
-    );
-  }
-}
-
-class _CheckoutLoadingDialog extends StatelessWidget {
-  const _CheckoutLoadingDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return PopScope(
-      canPop: false,
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 44),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 132,
-                height: 132,
-                child: Lottie.asset(
-                  'assets/medic-loading.json',
-                  fit: BoxFit.contain,
-                  repeat: true,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Memproses checkout',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Backend menghitung ringkasan biaya dan mencarikan mitra.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isDark
-                      ? AppColors.darkMutedText
-                      : AppColors.lightMutedText,
-                  fontSize: 12.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

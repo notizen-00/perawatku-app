@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:lottie/lottie.dart';
 
+import '../../../../core/helpers/app_snackbar.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../patient_member/domain/entities/patient_member_entity.dart';
 import '../../domain/entities/service_booking_entity.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
 import '../controllers/service_booking_controller.dart';
+import '../pages/service_booking_loading_page.dart';
 import 'inline_error.dart';
 
 class ServiceBookingPanel extends GetView<ServiceBookingController> {
@@ -127,8 +128,13 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
   }
 
   Future<void> _createBookingWithLoading(BuildContext context) async {
-    final loadingFuture = _showBookingLoadingDialog(context);
-    final createFuture = controller.createBooking();
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final loadingFuture = _showBookingLoadingPage(navigator);
+    await _waitForLoadingPage();
+    final createFuture = controller.createBooking(
+      showSuccessSnackbar: false,
+      showFailureSnackbar: false,
+    );
 
     final results = await Future.wait<Object?>([
       createFuture,
@@ -140,16 +146,18 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
     final serviceName = controller.selectedService.value?.name;
     final patientName = controller.selectedPatientMember.value?.name;
 
-    if (Get.isDialogOpen == true) {
-      Get.back<void>();
+    if (navigator.canPop()) {
+      navigator.pop();
     }
 
     await loadingFuture;
 
     if (booking == null) {
+      controller.showPendingCreateBookingFeedback();
       return;
     }
 
+    AppSnackbar.success('Booking dibuat', 'Detail booking sedang dibuka.');
     await Get.toNamed(
       AppRoutes.serviceBookingDetail,
       arguments: {
@@ -162,82 +170,16 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
     await controller.resetMatchmakingForm(reloadCatalog: false);
   }
 
-  Future<void> _showBookingLoadingDialog(BuildContext context) {
-    return Get.dialog<void>(
-      const _BookingLoadingDialog(),
-      barrierDismissible: false,
-    );
-  }
-}
-
-class _BookingLoadingDialog extends StatelessWidget {
-  const _BookingLoadingDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return PopScope(
-      canPop: false,
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 44),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.38 : 0.12),
-                blurRadius: 30,
-                offset: const Offset(0, 18),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 132,
-                height: 132,
-                child: Lottie.asset(
-                  'assets/medic-loading.json',
-                  fit: BoxFit.contain,
-                  repeat: true,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Menyiapkan booking',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Kami sedang memproses layanan dan estimasi pembayaran.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isDark
-                      ? AppColors.darkMutedText
-                      : AppColors.lightMutedText,
-                  fontSize: 12.5,
-                  height: 1.35,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
+  Future<void> _showBookingLoadingPage(NavigatorState navigator) {
+    return navigator.push<void>(
+      MaterialPageRoute(
+        builder: (_) => const ServiceBookingLoadingPage(),
       ),
     );
+  }
+
+  Future<void> _waitForLoadingPage() {
+    return Future<void>.delayed(const Duration(milliseconds: 320));
   }
 }
 
