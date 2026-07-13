@@ -712,8 +712,12 @@ class _AreaPickerSection extends StatelessWidget {
             value: controller.selectedProvince.value,
             items: controller.provinces,
             isLoading: controller.isLoadingProvinces.value,
-            onRefresh: controller.loadProvinces,
-            onChanged: controller.selectProvince,
+            onRefresh: () {
+              controller.loadProvinces();
+            },
+            onChanged: (value) {
+              controller.selectProvince(value);
+            },
           ),
           Row(
             children: [
@@ -724,8 +728,10 @@ class _AreaPickerSection extends StatelessWidget {
                   items: controller.regencies,
                   isLoading: controller.isLoadingRegencies.value,
                   enabled: controller.selectedProvince.value != null,
-                  emptyHint: 'Pilih provinsi dulu',
-                  onChanged: controller.selectRegency,
+                  emptyHint: 'Pilih kota/kabupaten',
+                  onChanged: (value) {
+                    controller.selectRegency(value);
+                  },
                 ),
               ),
               const SizedBox(width: 10),
@@ -736,7 +742,7 @@ class _AreaPickerSection extends StatelessWidget {
                   items: controller.districts,
                   isLoading: controller.isLoadingDistricts.value,
                   enabled: controller.selectedRegency.value != null,
-                  emptyHint: 'Pilih kota dulu',
+                  emptyHint: 'Pilih kecamatan',
                   onChanged: controller.selectDistrict,
                 ),
               ),

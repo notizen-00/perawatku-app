@@ -148,8 +148,17 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
                 actions: [
-                  Obx(
-                    () => TextButton.icon(
+                  Obx(() {
+                    if (_needsPayment(booking)) {
+                      return _PulsingPayAction(
+                        isLoading: controller.isOpeningPayment.value,
+                        onPressed: controller.isOpeningPayment.value
+                            ? null
+                            : () => _payBookingFromHeader(booking),
+                      );
+                    }
+
+                    return TextButton.icon(
                       onPressed:
                           booking.canCancelBeforePartnerFound &&
                               !controller.isCancellingBooking.value
@@ -163,8 +172,8 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
                             )
                           : const Icon(Icons.close_rounded),
                       label: const Text('Batal'),
-                    ),
-                  ),
+                    );
+                  }),
                   const SizedBox(width: 8),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
@@ -242,6 +251,16 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
         reason: 'Dibatalkan oleh pasien sebelum dibayar dan diterima mitra.',
       );
     }
+  }
+
+  bool _needsPayment(ServiceBookingEntity booking) {
+    return booking.isAcceptedByPartner && !booking.isPaid;
+  }
+
+  Future<void> _payBookingFromHeader(ServiceBookingEntity booking) async {
+    controller.latestBooking.value = booking;
+    await controller.openLatestBookingPayment();
+    await controller.loadBookingDetail(arguments.bookingId);
   }
 
   Future<void> _openOrderDetail(ServiceBookingEntity booking) async {
@@ -330,6 +349,73 @@ class ServiceBookingOrderDetailPage extends StatefulWidget {
   @override
   State<ServiceBookingOrderDetailPage> createState() =>
       _ServiceBookingOrderDetailPageState();
+}
+
+class _PulsingPayAction extends StatefulWidget {
+  const _PulsingPayAction({
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final bool isLoading;
+  final VoidCallback? onPressed;
+
+  @override
+  State<_PulsingPayAction> createState() => _PulsingPayActionState();
+}
+
+class _PulsingPayActionState extends State<_PulsingPayAction>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 850),
+    )..repeat(reverse: true);
+    _scale = Tween<double>(begin: 1, end: 1.08).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _scale,
+      child: FilledButton.icon(
+        onPressed: widget.onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          minimumSize: const Size(0, 38),
+        ),
+        icon: widget.isLoading
+            ? const SizedBox(
+                width: 15,
+                height: 15,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.payments_rounded, size: 18),
+        label: const Text(
+          'Bayar',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+    );
+  }
 }
 
 class _ServiceBookingOrderDetailPageState
@@ -1825,7 +1911,7 @@ class _PremiumPartnerCard extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: null,
                   icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  label: const Text('Obrolan'),
+                  label: const Text('Chat'),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1833,12 +1919,12 @@ class _PremiumPartnerCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: null,
                   icon: const Icon(Icons.call_rounded),
-                  label: const Text('Telepon'),
+                  label: const Text('Call'),
                 ),
               ),
               const SizedBox(width: 10),
               IconButton.filledTonal(
-                onPressed: null,
+                onPressed: () => _showPartnerProfile(context, partnerName),
                 icon: const Icon(Icons.more_horiz_rounded),
               ),
             ],
@@ -1879,6 +1965,196 @@ class _PremiumPartnerCard extends StatelessWidget {
     }
     return '${parts.first.characters.first}${parts.last.characters.first}'
         .toUpperCase();
+  }
+
+  void _showPartnerProfile(BuildContext context, String partnerName) {
+    final isAccepted = booking.isAcceptedByPartner;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final distance = booking.distanceKm == null
+            ? '-'
+            : '${booking.distanceKm!.toStringAsFixed(1)} km';
+        final coordinate =
+            booking.partnerLatitude == null || booking.partnerLongitude == null
+            ? '-'
+            : '${booking.partnerLatitude!.toStringAsFixed(6)}, '
+                  '${booking.partnerLongitude!.toStringAsFixed(6)}';
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD8DEE7),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: const Color(0xFFE1F4EF),
+                      child: Text(
+                        _initials(partnerName),
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            partnerName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isAccepted
+                                ? 'Mitra layanan'
+                                : 'Mitra belum ditetapkan',
+                            style: const TextStyle(
+                              color: AppColors.lightMutedText,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                _PartnerProfileRow(
+                  icon: Icons.medical_services_rounded,
+                  label: 'Layanan',
+                  value: serviceName,
+                ),
+                _PartnerProfileRow(
+                  icon: Icons.badge_rounded,
+                  label: 'Nomor mitra',
+                  value: booking.assignedPartnerUserId == null
+                      ? '-'
+                      : '#${booking.assignedPartnerUserId}',
+                ),
+                _PartnerProfileRow(
+                  icon: Icons.verified_rounded,
+                  label: 'Status',
+                  value: isAccepted
+                      ? 'Menerima pesanan'
+                      : booking.isSearchingReplacementPartner
+                      ? 'Mencari mitra pengganti'
+                      : 'Menunggu konfirmasi',
+                ),
+                _PartnerProfileRow(
+                  icon: Icons.schedule_rounded,
+                  label: 'Diterima',
+                  value: booking.acceptedAt ?? '-',
+                ),
+                _PartnerProfileRow(
+                  icon: Icons.route_rounded,
+                  label: 'Jarak',
+                  value: distance,
+                ),
+                _PartnerProfileRow(
+                  icon: Icons.location_on_rounded,
+                  label: 'Koordinat',
+                  value: coordinate,
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Tutup'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _PartnerProfileRow extends StatelessWidget {
+  const _PartnerProfileRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF8F5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 20),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppColors.lightMutedText,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
