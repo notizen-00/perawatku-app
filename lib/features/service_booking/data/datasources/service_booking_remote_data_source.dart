@@ -35,6 +35,8 @@ abstract class ServiceBookingRemoteDataSource {
 
   Future<ServiceBookingModel> payBooking(int bookingId, {String? notes});
 
+  Future<ServiceBookingModel> rematchBooking(int bookingId, {String? notes});
+
   Future<ServiceBookingModel> confirmCompletion(int bookingId, {String? notes});
 
   Future<ServiceBookingModel> cancelBooking(int bookingId, {String? reason});
@@ -136,6 +138,23 @@ class ServiceBookingRemoteDataSourceImpl
     final trimmedNotes = notes?.trim();
     final response = await _apiClient.patch(
       '${AppEndpoints.patientServiceBookings}/$bookingId/pay',
+      data: <String, dynamic>{
+        if (trimmedNotes != null && trimmedNotes.isNotEmpty)
+          'notes': trimmedNotes,
+      },
+    );
+
+    return ServiceBookingModel.fromJson(response);
+  }
+
+  @override
+  Future<ServiceBookingModel> rematchBooking(
+    int bookingId, {
+    String? notes,
+  }) async {
+    final trimmedNotes = notes?.trim();
+    final response = await _apiClient.post(
+      '${AppEndpoints.patientServiceBookings}/$bookingId/rematch',
       data: <String, dynamic>{
         if (trimmedNotes != null && trimmedNotes.isNotEmpty)
           'notes': trimmedNotes,

@@ -233,9 +233,9 @@ class _CheckoutBottomBar extends StatelessWidget {
     final loadingFuture = navigator.push<void>(
       MaterialPageRoute(
         builder: (_) => const ServiceBookingLoadingPage(
-          title: 'Sedang mencari partner',
+          title: 'Menunggu konfirmasi mitra',
           subtitle:
-              'Checkout sedang diproses. Kami menghitung biaya layanan dan mencarikan mitra terdekat yang tersedia.',
+              'Kami mencari mitra yang sesuai. Jika mitra menolak, sistem otomatis mencari pengganti dan memperbarui estimasi biaya.',
         ),
       ),
     );
@@ -253,22 +253,29 @@ class _CheckoutBottomBar extends StatelessWidget {
     final serviceName = controller.selectedService.value?.name;
     final patientName = controller.selectedPatientMember.value?.name;
 
+    final acceptedBooking = booking == null
+        ? null
+        : await controller.waitUntilPartnerAccepted(booking);
+
     if (navigator.canPop()) {
       navigator.pop();
     }
     await loadingFuture;
 
-    if (booking == null) {
+    if (acceptedBooking == null) {
       controller.showPendingCreateBookingFeedback();
       return;
     }
 
-    AppSnackbar.success('Booking dibuat', 'Detail booking sedang dibuka.');
+    AppSnackbar.success(
+      'Mitra menerima pesanan',
+      'Detail booking sedang dibuka.',
+    );
     await Get.offNamed(
       AppRoutes.serviceBookingDetail,
       arguments: {
-        'bookingId': booking.id,
-        'booking': booking,
+        'bookingId': acceptedBooking.id,
+        'booking': acceptedBooking,
         'serviceName': serviceName,
         'patientName': patientName,
       },

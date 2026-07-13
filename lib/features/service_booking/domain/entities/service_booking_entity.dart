@@ -29,6 +29,7 @@ class ServiceBookingEntity {
     required this.paymentStatus,
     required this.snapToken,
     required this.paymentReference,
+    required this.matchmakingStatus,
     required this.matchmaking,
     required this.patientLatitude,
     required this.patientLongitude,
@@ -70,6 +71,7 @@ class ServiceBookingEntity {
   final String? paymentStatus;
   final String? snapToken;
   final String? paymentReference;
+  final String? matchmakingStatus;
   final ServiceBookingMatchmakingEntity? matchmaking;
   final double? patientLatitude;
   final double? patientLongitude;
@@ -88,6 +90,49 @@ class ServiceBookingEntity {
         normalized == 'settlement' ||
         normalized == 'capture' ||
         normalized == 'completed';
+  }
+
+  bool get isAcceptedByPartner {
+    final normalizedStatus = status.toLowerCase().trim();
+    final hasAcceptedAt = acceptedAt != null && acceptedAt!.trim().isNotEmpty;
+    return hasAcceptedAt ||
+        normalizedStatus == 'confirmed' ||
+        normalizedStatus == 'scheduled' ||
+        normalizedStatus == 'on_the_way' ||
+        normalizedStatus == 'completed';
+  }
+
+  bool get isWaitingPartnerAcceptance {
+    final normalizedStatus = status.toLowerCase().trim();
+    final normalizedMatchmakingStatus =
+        matchmakingStatus?.toLowerCase().trim() ?? '';
+    return !isAcceptedByPartner &&
+        normalizedStatus == 'pending' &&
+        (assignedPartnerUserId != null ||
+            normalizedMatchmakingStatus == 'waiting_partner_acceptance' ||
+            normalizedMatchmakingStatus == 'rematched' ||
+            normalizedMatchmakingStatus ==
+                'rematched_waiting_partner_acceptance');
+  }
+
+  bool get isSearchingReplacementPartner {
+    final normalizedStatus = status.toLowerCase().trim();
+    final normalizedMatchmakingStatus =
+        matchmakingStatus?.toLowerCase().trim() ?? '';
+    return !isAcceptedByPartner &&
+        normalizedStatus == 'pending' &&
+        assignedPartnerUserId == null &&
+        normalizedMatchmakingStatus != 'waiting_partner_acceptance' &&
+        normalizedMatchmakingStatus != 'rematched' &&
+        normalizedMatchmakingStatus !=
+            'rematched_waiting_partner_acceptance';
+  }
+
+  bool get shouldRequestPartnerRematch {
+    final normalizedMatchmakingStatus =
+        matchmakingStatus?.toLowerCase().trim() ?? '';
+    return isSearchingReplacementPartner ||
+        normalizedMatchmakingStatus == 'waiting_partner_available';
   }
 
   bool get canContinueAfterPayment {

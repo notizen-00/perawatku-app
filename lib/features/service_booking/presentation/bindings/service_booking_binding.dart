@@ -10,6 +10,7 @@ import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
 import '../../domain/usecases/pay_service_booking_use_case.dart';
+import '../../domain/usecases/rematch_service_booking_use_case.dart';
 import '../controllers/service_booking_controller.dart';
 
 class ServiceBookingBinding extends Bindings {
@@ -26,6 +27,7 @@ class ServiceBookingBinding extends Bindings {
         createBookingUseCase: Get.find<CreateServiceBookingUseCase>(),
         getBookingUseCase: Get.find<GetServiceBookingUseCase>(),
         payBookingUseCase: Get.find<PayServiceBookingUseCase>(),
+        rematchBookingUseCase: Get.find<RematchServiceBookingUseCase>(),
         confirmCompletionUseCase:
             Get.find<ConfirmServiceBookingCompletionUseCase>(),
         cancelBookingUseCase: Get.find<CancelServiceBookingUseCase>(),

@@ -12,6 +12,7 @@ import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
 import '../../../nurse/domain/usecases/get_nurses_use_case.dart';
 import '../../domain/usecases/pay_service_booking_use_case.dart';
+import '../../domain/usecases/rematch_service_booking_use_case.dart';
 import '../controllers/service_booking_controller.dart';
 import '../widgets/service_booking_panel.dart';
 
@@ -30,6 +31,7 @@ class ServiceMatchmakingPage extends StatelessWidget {
         createBookingUseCase: Get.find<CreateServiceBookingUseCase>(),
         getBookingUseCase: Get.find<GetServiceBookingUseCase>(),
         payBookingUseCase: Get.find<PayServiceBookingUseCase>(),
+        rematchBookingUseCase: Get.find<RematchServiceBookingUseCase>(),
         confirmCompletionUseCase:
             Get.find<ConfirmServiceBookingCompletionUseCase>(),
         cancelBookingUseCase: Get.find<CancelServiceBookingUseCase>(),

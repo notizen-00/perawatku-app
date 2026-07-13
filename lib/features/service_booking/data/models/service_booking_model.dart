@@ -33,6 +33,7 @@ class ServiceBookingModel extends ServiceBookingEntity {
     required super.paymentStatus,
     required super.snapToken,
     required super.paymentReference,
+    required super.matchmakingStatus,
     required super.matchmaking,
     required super.patientLatitude,
     required super.patientLongitude,
@@ -169,7 +170,14 @@ class ServiceBookingModel extends ServiceBookingEntity {
           'Booking #${booking['id'] ?? '-'}',
       serviceId: _readInt(booking['service_id']),
       assignedPartnerUserId: _readInt(
-        booking['assigned_partner_user_id'] ?? booking['partner_user_id'],
+        booking['assigned_partner_user_id'] ??
+            booking['partner_user_id'] ??
+            data?['assigned_partner_user_id'] ??
+            data?['partner_user_id'] ??
+            partner['id'] ??
+            partner['user_id'] ??
+            partnerProfile['user_id'] ??
+            matchmakingJson?['partner_user_id'],
       ),
       patientMemberId: _readInt(booking['patient_member_id']),
       patientAddressId: _readInt(booking['patient_address_id']),
@@ -249,6 +257,11 @@ class ServiceBookingModel extends ServiceBookingEntity {
             payment['payment_code'] ??
             transaction['order_id'] ??
             midtrans['order_id'],
+      ),
+      matchmakingStatus: _readString(
+        booking['matchmaking_status'] ??
+            data?['matchmaking_status'] ??
+            root['matchmaking_status'],
       ),
       matchmaking: matchmakingJson == null
           ? null

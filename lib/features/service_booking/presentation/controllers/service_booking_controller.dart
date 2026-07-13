@@ -22,6 +22,7 @@ import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
 import '../../domain/usecases/pay_service_booking_use_case.dart';
+import '../../domain/usecases/rematch_service_booking_use_case.dart';
 
 class ServiceBookingController extends GetxController {
   ServiceBookingController({
@@ -30,6 +31,7 @@ class ServiceBookingController extends GetxController {
     required CreateServiceBookingUseCase createBookingUseCase,
     required GetServiceBookingUseCase getBookingUseCase,
     required PayServiceBookingUseCase payBookingUseCase,
+    required RematchServiceBookingUseCase rematchBookingUseCase,
     required ConfirmServiceBookingCompletionUseCase confirmCompletionUseCase,
     required CancelServiceBookingUseCase cancelBookingUseCase,
     required CheckPromoCodeUseCase checkPromoCodeUseCase,
@@ -40,6 +42,7 @@ class ServiceBookingController extends GetxController {
        _createBookingUseCase = createBookingUseCase,
        _getBookingUseCase = getBookingUseCase,
        _payBookingUseCase = payBookingUseCase,
+       _rematchBookingUseCase = rematchBookingUseCase,
        _confirmCompletionUseCase = confirmCompletionUseCase,
        _cancelBookingUseCase = cancelBookingUseCase,
        _checkPromoCodeUseCase = checkPromoCodeUseCase,
@@ -51,6 +54,7 @@ class ServiceBookingController extends GetxController {
   final CreateServiceBookingUseCase _createBookingUseCase;
   final GetServiceBookingUseCase _getBookingUseCase;
   final PayServiceBookingUseCase _payBookingUseCase;
+  final RematchServiceBookingUseCase _rematchBookingUseCase;
   final ConfirmServiceBookingCompletionUseCase _confirmCompletionUseCase;
   final CancelServiceBookingUseCase _cancelBookingUseCase;
   final CheckPromoCodeUseCase _checkPromoCodeUseCase;
@@ -72,6 +76,8 @@ class ServiceBookingController extends GetxController {
   final RxBool isLoadingBookingDetail = false.obs;
   final RxBool isRefreshingBooking = false.obs;
   final RxBool isOpeningPayment = false.obs;
+  final RxBool isWaitingPartnerAcceptance = false.obs;
+  final RxBool isRematchingPartner = false.obs;
   final RxBool isConfirmingCompletion = false.obs;
   final RxBool isCancellingBooking = false.obs;
   final RxBool isLivePollingBookingDetail = false.obs;
@@ -869,6 +875,16 @@ class ServiceBookingController extends GetxController {
       return;
     }
 
+    if (!booking.isAcceptedByPartner) {
+      AppSnackbar.info(
+        'Menunggu mitra',
+        booking.isSearchingReplacementPartner
+            ? 'Sistem masih mencari mitra pengganti.'
+            : 'Detail dibuka setelah mitra menerima pesanan.',
+      );
+      return;
+    }
+
     await Get.toNamed(
       AppRoutes.serviceBookingDetail,
       arguments: {
@@ -892,6 +908,14 @@ class ServiceBookingController extends GetxController {
       AppSnackbar.success(
         'Pembayaran sudah selesai',
         'Pesanan sudah bisa diproses oleh mitra.',
+      );
+      return;
+    }
+
+    if (!booking.isAcceptedByPartner) {
+      AppSnackbar.info(
+        'Menunggu mitra',
+        'Pembayaran dibuka setelah mitra menerima pesanan.',
       );
       return;
     }
@@ -987,6 +1011,108 @@ class ServiceBookingController extends GetxController {
       return null;
     } finally {
       isRefreshingBooking.value = false;
+    }
+  }
+
+  Future<ServiceBookingEntity?> waitUntilPartnerAccepted(
+    ServiceBookingEntity booking, {
+    Duration interval = const Duration(seconds: 5),
+  }) async {
+    var current = booking;
+    latestBooking.value = current;
+    if (bookingDetail.value?.id == current.id) {
+      bookingDetail.value = current;
+    }
+
+    if (current.isAcceptedByPartner) {
+      return current;
+    }
+
+    isWaitingPartnerAcceptance.value = true;
+
+    try {
+      while (true) {
+        current = await _getBookingUseCase(current.id);
+        latestBooking.value = current;
+        if (bookingDetail.value?.id == current.id) {
+          bookingDetail.value = current;
+        }
+        _refreshActivities();
+
+        if (current.isAcceptedByPartner) {
+          return current;
+        }
+
+        if (current.shouldRequestPartnerRematch) {
+          final rematched = await rematchBookingSilently(
+            current.id,
+            notes: 'Cari mitra pengganti lagi.',
+          );
+          if (rematched != null) {
+            current = rematched;
+          }
+
+          if (current.isAcceptedByPartner) {
+            return current;
+          }
+        }
+
+        if (current.status.toLowerCase().trim() == 'cancelled') {
+          _handleCreateBookingFeedback(
+            'Booking dibatalkan',
+            'Booking sudah tidak aktif.',
+            showSnackbar: false,
+            isError: true,
+          );
+          return null;
+        }
+
+        await Future<void>.delayed(interval);
+      }
+    } on AppException catch (error) {
+      _handleCreateBookingFeedback(
+        'Status mitra gagal dimuat',
+        error.message,
+        showSnackbar: false,
+        isError: true,
+      );
+      return null;
+    } catch (_) {
+      _handleCreateBookingFeedback(
+        'Status mitra gagal dimuat',
+        'Belum bisa memperbarui status mitra saat ini.',
+        showSnackbar: false,
+        isError: true,
+      );
+      return null;
+    } finally {
+      isWaitingPartnerAcceptance.value = false;
+    }
+  }
+
+  Future<ServiceBookingEntity?> rematchBookingSilently(
+    int bookingId, {
+    String? notes,
+  }) async {
+    if (bookingId <= 0 || isRematchingPartner.value) {
+      return null;
+    }
+
+    isRematchingPartner.value = true;
+
+    try {
+      final booking = await _rematchBookingUseCase(bookingId, notes: notes);
+      latestBooking.value = booking;
+      if (bookingDetail.value?.id == booking.id) {
+        bookingDetail.value = booking;
+      }
+      _refreshActivities();
+      return booking;
+    } catch (_) {
+      // Rematch berjalan di loading page; gagal sementara cukup lanjut polling.
+      return null;
+    } finally {
+      isRematchingPartner.value = false;
     }
   }
 

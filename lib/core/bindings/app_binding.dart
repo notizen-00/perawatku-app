@@ -52,6 +52,7 @@ import '../../features/service_booking/domain/usecases/create_service_booking_us
 import '../../features/service_booking/domain/usecases/get_service_booking_services_use_case.dart';
 import '../../features/service_booking/domain/usecases/get_service_booking_use_case.dart';
 import '../../features/service_booking/domain/usecases/pay_service_booking_use_case.dart';
+import '../../features/service_booking/domain/usecases/rematch_service_booking_use_case.dart';
 import '../controllers/app_theme_controller.dart';
 import '../network/api_client.dart';
 import '../services/reverb_websocket_service.dart';
@@ -198,6 +199,11 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<PayServiceBookingUseCase>(
       () => PayServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<RematchServiceBookingUseCase>(
+      () => RematchServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
       fenix: true,
     );
 

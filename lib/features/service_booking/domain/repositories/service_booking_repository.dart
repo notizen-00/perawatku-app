@@ -32,6 +32,8 @@ abstract class ServiceBookingRepository {
 
   Future<ServiceBookingEntity> payBooking(int bookingId, {String? notes});
 
+  Future<ServiceBookingEntity> rematchBooking(int bookingId, {String? notes});
+
   Future<ServiceBookingEntity> confirmCompletion(
     int bookingId, {
     String? notes,

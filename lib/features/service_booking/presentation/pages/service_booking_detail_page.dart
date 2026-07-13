@@ -19,6 +19,7 @@ import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
 import '../../domain/usecases/pay_service_booking_use_case.dart';
+import '../../domain/usecases/rematch_service_booking_use_case.dart';
 import '../controllers/service_booking_controller.dart';
 import '../widgets/inline_error.dart';
 
@@ -86,6 +87,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
         createBookingUseCase: Get.find<CreateServiceBookingUseCase>(),
         getBookingUseCase: Get.find<GetServiceBookingUseCase>(),
         payBookingUseCase: Get.find<PayServiceBookingUseCase>(),
+        rematchBookingUseCase: Get.find<RematchServiceBookingUseCase>(),
         confirmCompletionUseCase:
             Get.find<ConfirmServiceBookingCompletionUseCase>(),
         cancelBookingUseCase: Get.find<CancelServiceBookingUseCase>(),
@@ -453,11 +455,14 @@ class _ServiceBookingOrderDetailPageState
                 ),
                 _DetailRow(
                   label: 'Mitra',
-                  value:
-                      booking.partnerName ??
-                      (booking.assignedPartnerUserId == null
-                          ? '-'
-                          : '#${booking.assignedPartnerUserId}'),
+                  value: booking.isAcceptedByPartner
+                      ? booking.partnerName ??
+                            (booking.assignedPartnerUserId == null
+                                ? '-'
+                                : '#${booking.assignedPartnerUserId}')
+                      : booking.isSearchingReplacementPartner
+                      ? 'Sedang mencari mitra'
+                      : 'Menunggu konfirmasi mitra',
                 ),
                 _DetailRow(
                   label: 'Alamat pasien',
@@ -533,10 +538,7 @@ class _ServiceBookingOrderDetailPageState
                     emptyValue: '-',
                   ),
                 ),
-                _DetailRow(
-                  label: 'Jadwal',
-                  value: _formatVisitPlan(booking),
-                ),
+                _DetailRow(label: 'Jadwal', value: _formatVisitPlan(booking)),
                 _DetailRow(
                   label: 'Jarak biaya',
                   value: booking.distanceKm == null
@@ -828,6 +830,12 @@ class _PremiumBookingExperience extends StatelessWidget {
     if (status == 'confirmed' || status == 'scheduled') {
       return 'Mitra Disiapkan';
     }
+    if (booking.isSearchingReplacementPartner) {
+      return 'Mencari Mitra';
+    }
+    if (booking.isWaitingPartnerAcceptance) {
+      return 'Menunggu Mitra';
+    }
     return 'Menunggu Mitra';
   }
 
@@ -846,6 +854,12 @@ class _PremiumBookingExperience extends StatelessWidget {
     }
     if (status == 'confirmed' || status == 'scheduled') {
       return 'Map aktif saat mitra mulai menuju lokasi.';
+    }
+    if (booking.isSearchingReplacementPartner) {
+      return 'Mitra sebelumnya belum menerima. Sistem mencari pengganti.';
+    }
+    if (booking.isWaitingPartnerAcceptance) {
+      return 'Menunggu mitra menerima pesanan sebelum pembayaran.';
     }
     return 'Kami mencari mitra yang sesuai untuk pesanan ini.';
   }
@@ -1000,16 +1014,16 @@ class _FeeMessageSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.warning.withValues(alpha: isDark ? 0.16 : 0.10),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.warning.withValues(alpha: 0.28),
-        ),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.28)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Icon(Icons.info_outline_rounded, color: AppColors.warning),
           const SizedBox(width: 10),
-          Expanded(child: _FeeMessageList(messages: messages, isDark: isDark)),
+          Expanded(
+            child: _FeeMessageList(messages: messages, isDark: isDark),
+          ),
         ],
       ),
     );
@@ -1088,7 +1102,10 @@ class _PrimaryTrackingActions extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: FilledButton.icon(
-              onPressed: booking.isPaid || isOpeningPayment.value
+              onPressed:
+                  booking.isPaid ||
+                      !booking.isAcceptedByPartner ||
+                      isOpeningPayment.value
                   ? null
                   : onPay,
               icon: isOpeningPayment.value
@@ -1098,7 +1115,13 @@ class _PrimaryTrackingActions extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.payments_rounded),
-              label: Text(booking.isPaid ? 'Terbayar' : 'Bayar'),
+              label: Text(
+                booking.isPaid
+                    ? 'Terbayar'
+                    : booking.isAcceptedByPartner
+                    ? 'Bayar'
+                    : 'Menunggu Mitra',
+              ),
             ),
           ),
         ],
@@ -1714,11 +1737,15 @@ class _PremiumPartnerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final partnerName =
-        booking.partnerName ??
-        (booking.assignedPartnerUserId == null
-            ? 'Mitra belum ditentukan'
-            : 'Mitra #${booking.assignedPartnerUserId}');
+    final isAccepted = booking.isAcceptedByPartner;
+    final partnerName = isAccepted
+        ? booking.partnerName ??
+              (booking.assignedPartnerUserId == null
+                  ? 'Mitra'
+                  : 'Mitra #${booking.assignedPartnerUserId}')
+        : booking.isSearchingReplacementPartner
+        ? 'Mencari mitra pengganti'
+        : 'Menunggu konfirmasi mitra';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1756,12 +1783,16 @@ class _PremiumPartnerCard extends StatelessWidget {
                     bottom: -2,
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
+                      decoration: BoxDecoration(
+                        color: isAccepted
+                            ? AppColors.primary
+                            : AppColors.warning,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
-                        Icons.verified_rounded,
+                      child: Icon(
+                        isAccepted
+                            ? Icons.verified_rounded
+                            : Icons.hourglass_top_rounded,
                         color: Colors.white,
                         size: 13,
                       ),
@@ -1785,7 +1816,9 @@ class _PremiumPartnerCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      serviceName,
+                      isAccepted
+                          ? serviceName
+                          : 'Mitra belum final sebelum pesanan diterima',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall,

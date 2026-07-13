@@ -65,6 +65,11 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
   }
 
   @override
+  Future<ServiceBookingEntity> rematchBooking(int bookingId, {String? notes}) {
+    return _remoteDataSource.rematchBooking(bookingId, notes: notes);
+  }
+
+  @override
   Future<ServiceBookingEntity> confirmCompletion(
     int bookingId, {
     String? notes,
