@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/constants/app_endpoints.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/response_extractors.dart';
@@ -126,8 +130,17 @@ class ServiceBookingRemoteDataSourceImpl
 
   @override
   Future<ServiceBookingModel> getBooking(int bookingId) async {
+    final endpoint = '${AppEndpoints.patientServiceBookings}/$bookingId';
+    debugPrint(
+      '[matchmaking-rematch] API GET start endpoint=$endpoint '
+      'bookingId=$bookingId',
+    );
     final response = await _apiClient.get(
-      '${AppEndpoints.patientServiceBookings}/$bookingId',
+      endpoint,
+    );
+    debugPrint(
+      '[matchmaking-rematch] API GET response bookingId=$bookingId '
+      'raw=${jsonEncode(response)}',
     );
 
     return ServiceBookingModel.fromJson(response);
@@ -153,12 +166,21 @@ class ServiceBookingRemoteDataSourceImpl
     String? notes,
   }) async {
     final trimmedNotes = notes?.trim();
+    final endpoint = '${AppEndpoints.patientServiceBookings}/$bookingId/rematch';
+    debugPrint(
+      '[matchmaking-rematch] API POST start endpoint=$endpoint '
+      'bookingId=$bookingId notes="${trimmedNotes ?? ''}"',
+    );
     final response = await _apiClient.post(
-      '${AppEndpoints.patientServiceBookings}/$bookingId/rematch',
+      endpoint,
       data: <String, dynamic>{
         if (trimmedNotes != null && trimmedNotes.isNotEmpty)
           'notes': trimmedNotes,
       },
+    );
+    debugPrint(
+      '[matchmaking-rematch] API POST response bookingId=$bookingId '
+      'raw=${jsonEncode(response)}',
     );
 
     return ServiceBookingModel.fromJson(response);
