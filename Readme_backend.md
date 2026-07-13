@@ -466,18 +466,23 @@ Body minimal:
 
 Field request `POST /api/patient/service-bookings`:
 
-| Field                | Required | Type     | Rule/Catatan                                                                                         |
-| -------------------- | -------- | -------- | ---------------------------------------------------------------------------------------------------- |
-| `service_id`         | Ya       | integer  | harus ada di `services`                                                                              |
-| `patient_member_id`  | Ya       | integer  | harus milik akun pasien login; profil pasien keluarga yang menerima layanan                          |
-| `patient_address_id` | Tidak    | integer  | harus ada di `patient_addresses`; jika tidak dikirim backend memakai alamat dari `patient_member_id` |
-| `booking_type`       | Tidak    | enum     | `scheduled` untuk sekali jalan, `daily` untuk layanan harian; default `scheduled`                    |
-| `scheduled_at`       | Tidak    | datetime | format `YYYY-MM-DD HH:mm:ss`; wajib setelah waktu sekarang jika dikirim                              |
-| `schedule_start_at`  | Tidak    | datetime | wajib untuk `booking_type=daily` jika `scheduled_at` tidak dikirim                                   |
-| `schedule_end_at`    | Tidak    | datetime | tanggal selesai `daily`; harus >= `schedule_start_at`                                                |
-| `duration_days`      | Tidak    | integer  | 1-30; dipakai untuk `daily` jika `schedule_end_at` tidak dikirim                                     |
-| `notes`              | Tidak    | string   | catatan pasien; max 1000                                                                             |
-| `promo_code`         | Tidak    | string   | kode promo jika dipakai                                                                              |
+| Field                | Required    | Type     | Rule/Catatan                                                                                         |
+| -------------------- | ----------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `service_id`         | Ya          | integer  | harus ada di `services`                                                                              |
+| `patient_member_id`  | Ya          | integer  | harus milik akun pasien login; profil pasien keluarga yang menerima layanan                          |
+| `patient_address_id` | Tidak       | integer  | harus ada di `patient_addresses`; jika tidak dikirim backend memakai alamat dari `patient_member_id` |
+| `booking_type`       | Tidak       | enum     | `scheduled` untuk sekali jalan, `daily` untuk layanan harian; default `scheduled`                    |
+| `scheduled_at`       | Tidak       | datetime | format `YYYY-MM-DD HH:mm:ss`; wajib setelah waktu sekarang jika dikirim                              |
+| `schedule_start_at`  | Tidak       | datetime | wajib untuk `booking_type=daily` jika `scheduled_at` tidak dikirim                                   |
+| `schedule_end_at`    | Tidak       | datetime | tanggal selesai `daily`; harus >= `schedule_start_at`                                                |
+| `duration_days`      | Tidak       | integer  | 1-30; dipakai untuk `daily` jika `schedule_end_at` tidak dikirim                                     |
+| `visit_plan`         | Tidak       | enum     | `once` atau `recurring`; default `once` untuk kompatibilitas                                         |
+| `recurrence`         | Kondisional | enum     | wajib saat `visit_plan=recurring`; `weekly` atau `monthly`                                           |
+| `visit_count`        | Kondisional | integer  | wajib saat recurring; minimal 2, maksimal 52                                                         |
+| `care_mode`          | Tidak       | enum     | `visit` atau `live_in`; live-in hanya untuk recurring                                                |
+| `location_type`      | Tidak       | enum     | `home` atau `hospital`; default `home`                                                               |
+| `notes`              | Tidak       | string   | catatan pasien; max 1000                                                                             |
+| `promo_code`         | Tidak       | string   | kode promo jika dipakai                                                                              |
 
 Body dengan jadwal:
 
@@ -535,6 +540,99 @@ promo fixed = dipotong satu kali
 total_amount = subtotal - discount_amount
 ```
 
+#### Booking sekali visit dan terjadwal
+
+Untuk UI Flutter baru, gunakan `visit_plan` dan jangan menjadikan `booking_type` sebagai pilihan utama. `booking_type` tetap ada untuk kompatibilitas versi aplikasi lama.
+
+Contoh sekali visit:
+
+```json
+{
+  "service_id": 1,
+  "patient_member_id": 2,
+  "visit_plan": "once",
+  "scheduled_at": "2026-07-20 09:00:00",
+  "care_mode": "visit",
+  "location_type": "home"
+}
+```
+
+Contoh terjadwal mingguan empat kunjungan di rumah sakit:
+
+```json
+{
+  "service_id": 1,
+  "patient_member_id": 2,
+  "visit_plan": "recurring",
+  "recurrence": "weekly",
+  "visit_count": 4,
+  "scheduled_at": "2026-07-20 09:00:00",
+  "care_mode": "visit",
+  "location_type": "hospital"
+}
+```
+
+Contoh terjadwal bulanan live-in:
+
+```json
+{
+  "service_id": 1,
+  "patient_member_id": 2,
+  "visit_plan": "recurring",
+  "recurrence": "monthly",
+  "visit_count": 3,
+  "scheduled_at": "2026-07-20 09:00:00",
+  "care_mode": "live_in",
+  "location_type": "hospital"
+}
+```
+
+Aturan biaya:
+
+```text
+service_subtotal = (base_price + markup_per_visit) x visit_count
+transport_fee = transport_fee_per_visit x visit_count
+meal_fee = hospital_meal_fee_per_visit x visit_count
+total_amount = service_subtotal - discount_amount + transport_fee + meal_fee
+```
+
+Transport hanya dikenakan jika recurring, bukan live-in, koordinat tersedia, dan jarak mitra lebih besar dari ambang admin. Jarak tepat pada ambang tidak dikenai biaya. Lokasi rumah sakit selalu mendapat uang makan per visit. Nilai `distance_km` dan `fee_policy_snapshot` dari response harus dianggap snapshot/read-only.
+
+Rekomendasi state form Flutter:
+
+```dart
+enum VisitPlan { once, recurring }
+enum Recurrence { weekly, monthly }
+enum CareMode { visit, liveIn }
+enum BookingLocationType { home, hospital }
+
+Map<String, dynamic> buildBookingPayload({
+  required int serviceId,
+  required int patientMemberId,
+  required VisitPlan visitPlan,
+  Recurrence? recurrence,
+  int visitCount = 1,
+  required DateTime scheduledAt,
+  CareMode careMode = CareMode.visit,
+  BookingLocationType locationType = BookingLocationType.home,
+}) {
+  return {
+    'service_id': serviceId,
+    'patient_member_id': patientMemberId,
+    'visit_plan': visitPlan.name,
+    if (visitPlan == VisitPlan.recurring) ...{
+      'recurrence': recurrence!.name,
+      'visit_count': visitCount,
+    },
+    'scheduled_at': scheduledAt.toIso8601String(),
+    'care_mode': careMode == CareMode.liveIn ? 'live_in' : 'visit',
+    'location_type': locationType.name,
+  };
+}
+```
+
+Di layar konfirmasi, tampilkan breakdown dari response backend (`subtotal`, `discount_amount`, `transport_fee`, `meal_fee`, `total_amount`). Jangan menghitung total final hanya di Flutter karena tarif admin dan jarak mitra ditentukan backend.
+
 Response penting:
 
 ```json
@@ -551,23 +649,31 @@ Response penting:
       "assigned_partner_user_id": 12,
       "patient_address_id": null,
       "booking_type": "scheduled",
+      "visit_plan": "recurring",
+      "recurrence": "weekly",
+      "visit_count": 4,
+      "care_mode": "visit",
+      "location_type": "hospital",
+      "distance_km": "12.40",
       "status": "pending",
       "duration_days": 1,
-      "total_amount": "100000.00",
+      "total_amount": "560000.00",
       "payment": {
         "id": 50,
         "payment_code": "PAY-SVC-20260707120000-123",
         "status": "pending",
-        "amount": "100000.00"
+        "amount": "560000.00"
       }
     },
     "pricing": {
       "base_price": 100000,
       "markup_amount": 0,
-      "subtotal": 100000,
+      "subtotal": 400000,
       "discount_amount": 0,
-      "total_amount": 100000,
-      "duration_days": 1
+      "transport_fee": "100000.00",
+      "meal_fee": "60000.00",
+      "total_amount": 560000,
+      "visit_count": 4
     },
     "matchmaking": {
       "partner_service_id": 4,
@@ -670,6 +776,50 @@ Body opsional:
 ```
 
 Endpoint ini hanya dapat dipakai pasien pemilik booking. Syaratnya booking sudah ditugaskan ke mitra, status booking `confirmed`, `scheduled`, `on_the_way`, atau `completed`, dan `payment.status = paid`. Saat berhasil, backend menandai booking `completed`, membuat histori konfirmasi pasien, dan mengirim saldo layanan ke wallet mitra. Endpoint aman dipanggil ulang karena payout tidak akan dibuat dua kali jika `partner_balance_transaction_id` sudah ada.
+
+Tracking lokasi mitra:
+
+```http
+GET /api/patient/service-bookings/{serviceBooking}/tracking
+```
+
+Endpoint ini mengambil snapshot lokasi terakhir mitra untuk booking milik pasien login. Pakai endpoint ini saat membuka layar map, lalu subscribe ke channel WebSocket tracking untuk update berikutnya.
+
+Contoh response tracking:
+
+```json
+{
+  "success": true,
+  "data": {
+    "service_booking_id": 25,
+    "booking_code": "SVC-ABCDEFGH",
+    "status": "on_the_way",
+    "assigned_partner_user_id": 12,
+    "partner": {
+      "id": 12,
+      "name": "Nurse Andi",
+      "phone": "081234567890"
+    },
+    "partner_location": {
+      "latitude": "-8.1723570",
+      "longitude": "113.7003020",
+      "accuracy_meters": "12.50",
+      "heading": "90.00",
+      "speed_mps": "4.20",
+      "updated_at": "2026-07-08T03:00:00.000000Z"
+    },
+    "destination": {
+      "id": 10,
+      "label": "Rumah",
+      "address": "Jl. Jawa No. 10",
+      "latitude": "-8.1700000",
+      "longitude": "113.7000000"
+    },
+    "channel": "private-service-booking.25.tracking",
+    "event": "service-booking.location.updated"
+  }
+}
+```
 
 Status booking yang muncul di response:
 
@@ -1260,6 +1410,53 @@ private-user.7.notifications
 
 Setelah menerima event realtime, aplikasi tetap bisa memanggil `GET /api/shared/notifications/unread-count` untuk sinkronisasi badge.
 
+### Service Booking Tracking
+
+Laravel channel:
+
+```text
+service-booking.{serviceBookingId}.tracking
+```
+
+Pusher channel name:
+
+```text
+private-service-booking.{serviceBookingId}.tracking
+```
+
+Event:
+
+```text
+service-booking.location.updated
+```
+
+Payload:
+
+```json
+{
+  "service_booking_id": 25,
+  "booking_code": "SVC-ABCDEFGH",
+  "status": "on_the_way",
+  "patient_user_id": 7,
+  "assigned_partner_user_id": 12,
+  "partner": {
+    "id": 12,
+    "name": "Nurse Andi",
+    "phone": "081234567890"
+  },
+  "location": {
+    "latitude": "-8.1723570",
+    "longitude": "113.7003020",
+    "accuracy_meters": "12.50",
+    "heading": "90.00",
+    "speed_mps": "4.20",
+    "updated_at": "2026-07-08T03:00:00.000000Z"
+  }
+}
+```
+
+Pasien hanya bisa subscribe ke channel tracking booking miliknya. Gunakan payload ini untuk menggeser marker mitra di map.
+
 ### Booking Matchmaking Mitra
 
 Channel ini untuk aplikasi mitra, bukan aplikasi pasien:
@@ -1390,38 +1587,53 @@ Bagian ini adalah kamus field yang umum muncul di response API. Field relasi sep
 
 ### Service Booking
 
-| Field                      | Type                | Catatan                                                                     |
-| -------------------------- | ------------------- | --------------------------------------------------------------------------- |
-| `id`                       | integer             | ID booking                                                                  |
-| `booking_code`             | string              | kode booking                                                                |
-| `service_id`               | integer             | ID layanan                                                                  |
-| `patient_user_id`          | integer             | ID pasien                                                                   |
-| `patient_member_id`        | integer/null        | profil pasien keluarga yang dipakai                                         |
-| `assigned_partner_user_id` | integer/null        | ID mitra hasil matchmaking                                                  |
-| `patient_address_id`       | integer/null        | alamat layanan                                                              |
-| `status`                   | enum                | `pending`, `confirmed`, `scheduled`, `on_the_way`, `completed`, `cancelled` |
-| `booking_type`             | enum                | `scheduled`, `daily`                                                        |
-| `scheduled_at`             | datetime/null       | jadwal                                                                      |
-| `schedule_start_at`        | datetime/null       | tanggal mulai layanan                                                       |
-| `schedule_end_at`          | datetime/null       | tanggal selesai layanan                                                     |
-| `duration_days`            | integer             | jumlah hari layanan; default 1                                              |
-| `accepted_at`              | datetime/null       | waktu diterima mitra                                                        |
-| `started_at`               | datetime/null       | waktu mulai/perjalanan                                                      |
-| `completed_at`             | datetime/null       | waktu selesai                                                               |
-| `total_amount`             | decimal string      | total akhir                                                                 |
-| `notes`                    | string/null         | catatan                                                                     |
-| `promo_code`               | string/null         | kode promo                                                                  |
-| `discount_amount`          | decimal string/null | nominal diskon                                                              |
-| `discount_type`            | string/null         | tipe diskon                                                                 |
-| `subtotal`                 | decimal string/null | subtotal sebelum diskon                                                     |
-| `markup_amount`            | decimal string/null | markup layanan                                                              |
-| `service`                  | object/null         | data layanan                                                                |
-| `patient`                  | object/null         | user pasien                                                                 |
-| `patient_member`           | object/null         | profil pasien keluarga                                                      |
-| `assigned_partner`         | object/null         | user mitra                                                                  |
-| `address`                  | object/null         | alamat pasien                                                               |
-| `histories`                | array               | histori tindakan/status jika dimuat                                         |
-| `payment`                  | object/null         | tagihan booking layanan                                                     |
+| Field                              | Type                | Catatan                                                                     |
+| ---------------------------------- | ------------------- | --------------------------------------------------------------------------- |
+| `id`                               | integer             | ID booking                                                                  |
+| `booking_code`                     | string              | kode booking                                                                |
+| `service_id`                       | integer             | ID layanan                                                                  |
+| `patient_user_id`                  | integer             | ID pasien                                                                   |
+| `patient_member_id`                | integer/null        | profil pasien keluarga yang dipakai                                         |
+| `assigned_partner_user_id`         | integer/null        | ID mitra hasil matchmaking                                                  |
+| `patient_address_id`               | integer/null        | alamat layanan                                                              |
+| `status`                           | enum                | `pending`, `confirmed`, `scheduled`, `on_the_way`, `completed`, `cancelled` |
+| `booking_type`                     | enum                | `scheduled`, `daily`                                                        |
+| `visit_plan`                       | enum                | `once`, `recurring`                                                         |
+| `recurrence`                       | enum/null           | `weekly`, `monthly`; null untuk sekali visit                                |
+| `visit_count`                      | integer             | jumlah kunjungan                                                            |
+| `care_mode`                        | enum                | `visit`, `live_in`                                                          |
+| `location_type`                    | enum                | `home`, `hospital`                                                          |
+| `distance_km`                      | decimal string/null | snapshot jarak mitra ke lokasi pasien                                       |
+| `scheduled_at`                     | datetime/null       | jadwal                                                                      |
+| `schedule_start_at`                | datetime/null       | tanggal mulai layanan                                                       |
+| `schedule_end_at`                  | datetime/null       | tanggal selesai layanan                                                     |
+| `duration_days`                    | integer             | jumlah hari layanan; default 1                                              |
+| `accepted_at`                      | datetime/null       | waktu diterima mitra                                                        |
+| `started_at`                       | datetime/null       | waktu mulai/perjalanan                                                      |
+| `completed_at`                     | datetime/null       | waktu selesai                                                               |
+| `partner_current_latitude`         | decimal string/null | latitude lokasi realtime mitra terakhir                                     |
+| `partner_current_longitude`        | decimal string/null | longitude lokasi realtime mitra terakhir                                    |
+| `partner_location_accuracy_meters` | decimal string/null | akurasi GPS dalam meter                                                     |
+| `partner_location_heading`         | decimal string/null | arah gerak derajat 0-360                                                    |
+| `partner_location_speed_mps`       | decimal string/null | kecepatan meter/detik                                                       |
+| `partner_location_updated_at`      | datetime/null       | waktu lokasi terakhir diterima backend                                      |
+| `total_amount`                     | decimal string      | total akhir                                                                 |
+| `notes`                            | string/null         | catatan                                                                     |
+| `promo_code`                       | string/null         | kode promo                                                                  |
+| `discount_amount`                  | decimal string/null | nominal diskon                                                              |
+| `discount_type`                    | string/null         | tipe diskon                                                                 |
+| `subtotal`                         | decimal string/null | subtotal sebelum diskon                                                     |
+| `markup_amount`                    | decimal string/null | markup layanan                                                              |
+| `transport_fee`                    | decimal string      | total biaya transport booking                                               |
+| `meal_fee`                         | decimal string      | total uang makan booking                                                    |
+| `fee_policy_snapshot`              | object/null         | tarif dan ambang admin saat booking dibuat                                  |
+| `service`                          | object/null         | data layanan                                                                |
+| `patient`                          | object/null         | user pasien                                                                 |
+| `patient_member`                   | object/null         | profil pasien keluarga                                                      |
+| `assigned_partner`                 | object/null         | user mitra                                                                  |
+| `address`                          | object/null         | alamat pasien                                                               |
+| `histories`                        | array               | histori tindakan/status jika dimuat                                         |
+| `payment`                          | object/null         | tagihan booking layanan                                                     |
 
 ### Consultation
 
@@ -1566,12 +1778,13 @@ Bagian ini adalah kamus field yang umum muncul di response API. Field relasi sep
 9. Buat booking via `POST /api/patient/service-bookings`.
 10. Tampilkan status `Menunggu konfirmasi mitra`; response awal punya `assigned_partner_user_id` dan `matchmaking_status=waiting_partner_acceptance`.
 11. Bayar booking via `PATCH /api/patient/service-bookings/{id}/pay`.
-12. Setelah layanan selesai di lapangan, pasien konfirmasi via `PATCH /api/patient/service-bookings/{id}/confirm-completion`; wallet mitra otomatis dikreditkan jika belum pernah dibayarkan.
-13. Setelah mitra menerima dan pembayaran berhasil, polling/detail booking atau tunggu notifikasi status untuk melihat perjalanan layanan.
-14. Subscribe ke `private-user.{userId}.notifications` untuk menerima notifikasi realtime.
-15. Untuk chat konsultasi, subscribe ke `private-consultation.{consultationId}`.
-16. Saat mengirim pesan konsultasi, panggil `POST /api/patient/consultations/{consultation}/messages`; penerima akan dapat event `chat.message.created`.
-17. Panggil `GET /api/shared/notifications/unread-count` untuk badge jumlah notifikasi.
+12. Saat status `on_the_way`, buka map dengan snapshot `GET /api/patient/service-bookings/{id}/tracking`, lalu subscribe ke `private-service-booking.{id}.tracking`.
+13. Setelah layanan selesai di lapangan, pasien konfirmasi via `PATCH /api/patient/service-bookings/{id}/confirm-completion`; wallet mitra otomatis dikreditkan jika belum pernah dibayarkan.
+14. Setelah mitra menerima dan pembayaran berhasil, polling/detail booking atau tunggu notifikasi status untuk melihat perjalanan layanan.
+15. Subscribe ke `private-user.{userId}.notifications` untuk menerima notifikasi realtime.
+16. Untuk chat konsultasi, subscribe ke `private-consultation.{consultationId}`.
+17. Saat mengirim pesan konsultasi, panggil `POST /api/patient/consultations/{consultation}/messages`; penerima akan dapat event `chat.message.created`.
+18. Panggil `GET /api/shared/notifications/unread-count` untuk badge jumlah notifikasi.
 
 ## Debug WebSocket
 

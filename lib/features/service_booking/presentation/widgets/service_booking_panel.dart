@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -40,7 +41,7 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
               onChanged: controller.selectPatientMember,
             ),
             const SizedBox(height: 10),
-            _ScheduledAtField(controller: controller),
+            _ScheduleForm(controller: controller),
             const SizedBox(height: 10),
             TextField(
               controller: controller.notesController,
@@ -571,10 +572,137 @@ class _PatientMemberPicker extends StatelessWidget {
   }
 }
 
-class _ScheduledAtField extends StatelessWidget {
-  const _ScheduledAtField({required this.controller});
+class _ScheduleForm extends StatelessWidget {
+  const _ScheduleForm({required this.controller});
 
   final ServiceBookingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final isRecurring = controller.isRecurringSchedule;
+      final selectedSchedule = controller.selectedScheduleOption.value;
+
+      return Column(
+        children: [
+          DropdownButtonFormField<String>(
+            value: selectedSchedule,
+            isExpanded: true,
+            decoration: const InputDecoration(
+              labelText: 'Pola jadwal',
+              prefixIcon: Icon(Icons.event_repeat_rounded),
+            ),
+            items: const [
+              DropdownMenuItem(
+                value: ServiceScheduleOption.once,
+                child: Text('Sekali visit'),
+              ),
+              DropdownMenuItem(
+                value: ServiceScheduleOption.weekly,
+                child: Text('Mingguan'),
+              ),
+              DropdownMenuItem(
+                value: ServiceScheduleOption.monthly,
+                child: Text('Bulanan'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value != null) {
+                controller.selectScheduleOption(value);
+              }
+            },
+          ),
+          const SizedBox(height: 10),
+          _ScheduledAtField(
+            controller: controller,
+            labelText: isRecurring
+                ? 'Tanggal mulai kunjungan'
+                : 'Tanggal kunjungan',
+          ),
+          if (isRecurring) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller.visitCountController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: 'Jumlah kunjungan',
+                prefixIcon: Icon(Icons.format_list_numbered_rounded),
+                hintText: 'Minimal 2, maksimal 52',
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: controller.selectedCareMode.value,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Mode rawat',
+                    prefixIcon: Icon(Icons.medical_information_rounded),
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                      value: ServiceCareMode.visit,
+                      child: Text('Visit'),
+                    ),
+                    DropdownMenuItem(
+                      value: ServiceCareMode.liveIn,
+                      enabled: isRecurring,
+                      child: const Text('Live-in'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.selectedCareMode.value = value;
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  value: controller.selectedLocationType.value,
+                  isExpanded: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Lokasi',
+                    prefixIcon: Icon(Icons.location_on_rounded),
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: ServiceBookingLocationType.home,
+                      child: Text('Rumah'),
+                    ),
+                    DropdownMenuItem(
+                      value: ServiceBookingLocationType.hospital,
+                      child: Text('RS'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      controller.selectedLocationType.value = value;
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _ScheduledAtField extends StatelessWidget {
+  const _ScheduledAtField({
+    required this.controller,
+    required this.labelText,
+  });
+
+  final ServiceBookingController controller;
+  final String labelText;
 
   @override
   Widget build(BuildContext context) {
@@ -606,9 +734,9 @@ class _ScheduledAtField extends StatelessWidget {
         await controller.pickScheduledAt(date, time);
       },
       decoration: InputDecoration(
-        labelText: 'Jadwal kunjungan opsional',
+        labelText: labelText,
         prefixIcon: const Icon(Icons.event_rounded),
-        hintText: 'Pilih tanggal dan jam',
+        hintText: 'Pilih tanggal dan jam mulai',
         suffixIcon: controller.scheduledAtController.text.trim().isEmpty
             ? null
             : IconButton(

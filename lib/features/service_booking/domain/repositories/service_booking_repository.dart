@@ -14,6 +14,11 @@ abstract class ServiceBookingRepository {
     int? patientMemberId,
     int? patientAddressId,
     String? scheduledAt,
+    String? visitPlan,
+    String? recurrence,
+    int? visitCount,
+    String? careMode,
+    String? locationType,
     String? notes,
     String? promoCode,
   });

@@ -17,6 +17,11 @@ abstract class ServiceBookingRemoteDataSource {
     int? patientMemberId,
     int? patientAddressId,
     String? scheduledAt,
+    String? visitPlan,
+    String? recurrence,
+    int? visitCount,
+    String? careMode,
+    String? locationType,
     String? notes,
     String? promoCode,
   });
@@ -72,6 +77,11 @@ class ServiceBookingRemoteDataSourceImpl
     int? patientMemberId,
     int? patientAddressId,
     String? scheduledAt,
+    String? visitPlan,
+    String? recurrence,
+    int? visitCount,
+    String? careMode,
+    String? locationType,
     String? notes,
     String? promoCode,
   }) async {
@@ -83,6 +93,15 @@ class ServiceBookingRemoteDataSourceImpl
         if (patientAddressId != null) 'patient_address_id': patientAddressId,
         if (scheduledAt != null && scheduledAt.trim().isNotEmpty)
           'scheduled_at': scheduledAt.trim(),
+        if (visitPlan != null && visitPlan.trim().isNotEmpty)
+          'visit_plan': visitPlan.trim(),
+        if (recurrence != null && recurrence.trim().isNotEmpty)
+          'recurrence': recurrence.trim(),
+        if (visitCount != null) 'visit_count': visitCount,
+        if (careMode != null && careMode.trim().isNotEmpty)
+          'care_mode': careMode.trim(),
+        if (locationType != null && locationType.trim().isNotEmpty)
+          'location_type': locationType.trim(),
         if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
         if (promoCode != null && promoCode.trim().isNotEmpty)
           'promo_code': promoCode.trim(),

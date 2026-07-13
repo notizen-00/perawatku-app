@@ -31,6 +31,11 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
     int? patientMemberId,
     int? patientAddressId,
     String? scheduledAt,
+    String? visitPlan,
+    String? recurrence,
+    int? visitCount,
+    String? careMode,
+    String? locationType,
     String? notes,
     String? promoCode,
   }) {
@@ -39,6 +44,11 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
       patientMemberId: patientMemberId,
       patientAddressId: patientAddressId,
       scheduledAt: scheduledAt,
+      visitPlan: visitPlan,
+      recurrence: recurrence,
+      visitCount: visitCount,
+      careMode: careMode,
+      locationType: locationType,
       notes: notes,
       promoCode: promoCode,
     );

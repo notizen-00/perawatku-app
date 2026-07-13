@@ -92,7 +92,13 @@ class ServiceBookingController extends GetxController {
 
   final TextEditingController notesController = TextEditingController();
   final TextEditingController scheduledAtController = TextEditingController();
+  final TextEditingController visitCountController = TextEditingController(
+    text: '4',
+  );
   final TextEditingController promoCodeController = TextEditingController();
+  final RxString selectedScheduleOption = ServiceScheduleOption.once.obs;
+  final RxString selectedCareMode = ServiceCareMode.visit.obs;
+  final RxString selectedLocationType = ServiceBookingLocationType.home.obs;
 
   int _categoryCatalogRequestId = 0;
   int _categoryServicesRequestId = 0;
@@ -118,6 +124,7 @@ class ServiceBookingController extends GetxController {
   void onClose() {
     notesController.dispose();
     scheduledAtController.dispose();
+    visitCountController.dispose();
     promoCodeController.dispose();
     _midtransService.removeTransactionFinishedCallback();
     stopBookingDetailPolling();
@@ -139,7 +146,11 @@ class ServiceBookingController extends GetxController {
     isPromoValid.value = false;
     notesController.clear();
     scheduledAtController.clear();
+    visitCountController.text = '4';
     promoCodeController.clear();
+    selectedScheduleOption.value = ServiceScheduleOption.once;
+    selectedCareMode.value = ServiceCareMode.visit;
+    selectedLocationType.value = ServiceBookingLocationType.home;
 
     if (reloadCatalog) {
       await loadServiceCategories();
@@ -578,6 +589,13 @@ class ServiceBookingController extends GetxController {
     scheduledAtController.text = _formatDateTimeForBackend(scheduledAt);
   }
 
+  void selectScheduleOption(String option) {
+    selectedScheduleOption.value = option;
+    if (option == ServiceScheduleOption.once) {
+      selectedCareMode.value = ServiceCareMode.visit;
+    }
+  }
+
   Future<void> checkPromoCode() async {
     final service = selectedService.value;
     final code = promoCodeController.text.trim();
@@ -662,6 +680,31 @@ class ServiceBookingController extends GetxController {
       return;
     }
 
+    if (scheduledAtController.text.trim().isEmpty) {
+      AppSnackbar.info(
+        'Pilih tanggal kunjungan',
+        'Tentukan jadwal sebelum membuat booking layanan ini.',
+      );
+      return;
+    }
+
+    final visitCount = _readVisitCount();
+    if (isRecurringSchedule && (visitCount == null || visitCount < 2)) {
+      AppSnackbar.info(
+        'Jumlah kunjungan belum valid',
+        'Isi minimal 2 kunjungan untuk jadwal mingguan atau bulanan.',
+      );
+      return;
+    }
+
+    if (isRecurringSchedule && visitCount != null && visitCount > 52) {
+      AppSnackbar.info(
+        'Jumlah kunjungan terlalu banyak',
+        'Maksimal 52 kunjungan untuk jadwal mingguan atau bulanan.',
+      );
+      return;
+    }
+
     isCreatingBooking.value = true;
 
     try {
@@ -669,6 +712,11 @@ class ServiceBookingController extends GetxController {
         serviceId: service.bookingServiceId,
         patientMemberId: patientMember.id,
         scheduledAt: scheduledAtController.text,
+        visitPlan: isRecurringSchedule ? 'recurring' : 'once',
+        recurrence: isRecurringSchedule ? selectedScheduleOption.value : null,
+        visitCount: isRecurringSchedule ? visitCount : null,
+        careMode: selectedCareMode.value,
+        locationType: selectedLocationType.value,
         notes: notesController.text,
         promoCode: promoCodeController.text,
       );
@@ -984,6 +1032,16 @@ class ServiceBookingController extends GetxController {
     );
   }
 
+  bool get isRecurringSchedule {
+    final option = selectedScheduleOption.value;
+    return option == ServiceScheduleOption.weekly ||
+        option == ServiceScheduleOption.monthly;
+  }
+
+  int? _readVisitCount() {
+    return int.tryParse(visitCountController.text.trim());
+  }
+
   String _formatDateTimeForBackend(DateTime dateTime) {
     final year = dateTime.year.toString().padLeft(4, '0');
     final month = dateTime.month.toString().padLeft(2, '0');
@@ -1031,6 +1089,28 @@ class ServiceBookingController extends GetxController {
       'serviceError="${serviceErrorMessage.value}"',
     );
   }
+}
+
+class ServiceScheduleOption {
+  const ServiceScheduleOption._();
+
+  static const String once = 'once';
+  static const String weekly = 'weekly';
+  static const String monthly = 'monthly';
+}
+
+class ServiceCareMode {
+  const ServiceCareMode._();
+
+  static const String visit = 'visit';
+  static const String liveIn = 'live_in';
+}
+
+class ServiceBookingLocationType {
+  const ServiceBookingLocationType._();
+
+  static const String home = 'home';
+  static const String hospital = 'hospital';
 }
 
 class ServiceCategoryOption {
