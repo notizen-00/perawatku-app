@@ -1054,6 +1054,15 @@ class ServiceBookingController extends GetxController {
           _logMatchmakingRematchBooking('wait:findingReplacement', current);
         }
 
+        if (current.canRequestPartnerRematch) {
+          _logMatchmakingRematchBooking('wait:noReplacementPartner', current);
+          await cancelBookingWhenNoReplacementPartner(
+            current,
+            showSnackbar: false,
+          );
+          return null;
+        }
+
         if (current.status.toLowerCase().trim() == 'cancelled') {
           _logMatchmakingRematchBooking('wait:cancelled', current);
           _handleCreateBookingFeedback(
@@ -1168,9 +1177,9 @@ class ServiceBookingController extends GetxController {
     }
 
     if (rematched.assignedPartnerUserId == null) {
-      AppSnackbar.info(
-        'Masih mencari mitra',
-        'Belum ada mitra pengganti yang tersedia saat ini.',
+      await cancelBookingWhenNoReplacementPartner(
+        rematched,
+        showSnackbar: true,
       );
       return;
     }
@@ -1179,6 +1188,76 @@ class ServiceBookingController extends GetxController {
       'Mitra pengganti ditemukan',
       'Kami menunggu mitra menerima pesanan.',
     );
+  }
+
+  Future<void> cancelBookingWhenNoReplacementPartner(
+    ServiceBookingEntity booking, {
+    required bool showSnackbar,
+  }) async {
+    if (isCancellingBooking.value) {
+      debugPrint(
+        '[matchmaking-rematch] cancelNoReplacement:skipped '
+        'bookingId=${booking.id} isCancelling=true',
+      );
+      return;
+    }
+
+    _logMatchmakingRematchBooking('cancelNoReplacement:start', booking);
+
+    Future<void> showNoPartnerFeedback() async {
+      const title = 'Tidak ada mitra lagi';
+      const message = 'Silakan coba lagi beberapa saat.';
+      if (showSnackbar) {
+        AppSnackbar.info(title, message);
+      } else {
+        _handleCreateBookingFeedback(
+          title,
+          message,
+          showSnackbar: false,
+          isError: true,
+        );
+      }
+    }
+
+    if (!booking.canCancelBeforePartnerFound) {
+      await showNoPartnerFeedback();
+      debugPrint(
+        '[matchmaking-rematch] cancelNoReplacement:skip '
+        'bookingId=${booking.id} canCancel=false',
+      );
+      return;
+    }
+
+    isCancellingBooking.value = true;
+    try {
+      final cancelled = await _cancelBookingUseCase(
+        booking.id,
+        reason: 'Tidak ada mitra pengganti tersedia.',
+      );
+      bookingDetail.value = cancelled;
+      latestBooking.value = cancelled;
+      stopBookingDetailPolling();
+      _refreshActivities();
+      _logMatchmakingRematchBooking(
+        'cancelNoReplacement:success',
+        cancelled,
+      );
+      await showNoPartnerFeedback();
+    } on AppException catch (error) {
+      debugPrint(
+        '[matchmaking-rematch] cancelNoReplacement:appError '
+        'bookingId=${booking.id} message="${error.message}"',
+      );
+      await showNoPartnerFeedback();
+    } catch (error) {
+      debugPrint(
+        '[matchmaking-rematch] cancelNoReplacement:error '
+        'bookingId=${booking.id} error=$error',
+      );
+      await showNoPartnerFeedback();
+    } finally {
+      isCancellingBooking.value = false;
+    }
   }
 
   Future<void> loadBookingDetail(int bookingId) async {
@@ -1196,6 +1275,12 @@ class ServiceBookingController extends GetxController {
       bookingDetail.value = booking;
       latestBooking.value = booking;
       _refreshActivities();
+      if (booking.canRequestPartnerRematch) {
+        await cancelBookingWhenNoReplacementPartner(
+          booking,
+          showSnackbar: true,
+        );
+      }
     } on AppException catch (error) {
       bookingDetailErrorMessage.value = error.message;
     } catch (_) {
@@ -1244,6 +1329,12 @@ class ServiceBookingController extends GetxController {
       bookingDetail.value = booking;
       latestBooking.value = booking;
       _refreshActivities();
+      if (booking.canRequestPartnerRematch) {
+        await cancelBookingWhenNoReplacementPartner(
+          booking,
+          showSnackbar: true,
+        );
+      }
     } catch (_) {
       // Polling realtime tidak perlu mengganggu UI dengan snackbar.
     }
