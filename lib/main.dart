@@ -32,11 +32,17 @@ class MyApp extends StatelessWidget {
 
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Medic Patient App',
+      title: 'Perawatku Pasien',
       theme: AppTheme.lightTheme,
       themeMode: ThemeMode.light,
       initialBinding: AppBinding(),
-      initialRoute: storageService.hasToken ? AppRoutes.home : AppRoutes.login,
+      initialRoute: storageService.hasToken
+          ? storageService.hasPatientAddress
+          ? AppRoutes.home
+          : AppRoutes.profileCompletion
+          : storageService.hasSeenOnboarding
+          ? AppRoutes.login
+          : AppRoutes.onboarding,
       getPages: AppPages.routes,
     );
   }
