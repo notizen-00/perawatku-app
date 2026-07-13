@@ -135,6 +135,16 @@ class ServiceBookingEntity {
         normalizedMatchmakingStatus == 'waiting_partner_available';
   }
 
+  bool get isNoPartnerAvailable {
+    final normalizedStatus = status.toLowerCase().trim();
+    final normalizedMatchmakingStatus =
+        matchmakingStatus?.toLowerCase().trim() ?? '';
+    return !isAcceptedByPartner &&
+        normalizedStatus == 'pending' &&
+        assignedPartnerUserId == null &&
+        normalizedMatchmakingStatus == 'waiting_partner_available';
+  }
+
   bool get canContinueAfterPayment {
     final normalizedStatus = status.toLowerCase().trim();
     return isPaid ||

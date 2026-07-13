@@ -1019,7 +1019,6 @@ class ServiceBookingController extends GetxController {
     Duration interval = const Duration(seconds: 5),
   }) async {
     var current = booking;
-    var rematchAttempts = 0;
     latestBooking.value = current;
     if (bookingDetail.value?.id == current.id) {
       bookingDetail.value = current;
@@ -1052,34 +1051,18 @@ class ServiceBookingController extends GetxController {
         }
 
         if (current.shouldRequestPartnerRematch) {
-          if (rematchAttempts >= 2) {
-            debugPrint(
-              '[matchmaking-rematch] wait:rematchLimitReached '
-              'bookingId=${current.id} attempts=$rematchAttempts',
-            );
-            final cancelled = await cancelBookingAfterRematchLimit(current);
-            return cancelled;
-          }
-
-          rematchAttempts++;
-          _logMatchmakingRematchBooking(
-            'wait:rematchRequired attempt=$rematchAttempts',
-            current,
-          );
+          _logMatchmakingRematchBooking('wait:rematchRequired', current);
           final rematched = await rematchBookingSilently(
             current.id,
-            notes: 'Cari mitra pengganti lagi. Percobaan $rematchAttempts.',
+            notes: 'Cari mitra pengganti lagi.',
           );
           if (rematched != null) {
             current = rematched;
-            _logMatchmakingRematchBooking(
-              'wait:rematchResult attempt=$rematchAttempts',
-              current,
-            );
+            _logMatchmakingRematchBooking('wait:rematchResult', current);
           } else {
             debugPrint(
               '[matchmaking-rematch] wait:rematchResult null '
-              'bookingId=${current.id} attempt=$rematchAttempts',
+              'bookingId=${current.id}',
             );
           }
 
@@ -1088,12 +1071,14 @@ class ServiceBookingController extends GetxController {
             return current;
           }
 
-          if (rematchAttempts >= 2 && current.shouldRequestPartnerRematch) {
+          if (current.isNoPartnerAvailable) {
             debugPrint(
-              '[matchmaking-rematch] wait:rematchLimitReachedAfterResult '
-              'bookingId=${current.id} attempts=$rematchAttempts',
+              '[matchmaking-rematch] wait:noPartnerAvailableAfterRematch '
+              'bookingId=${current.id}',
             );
-            final cancelled = await cancelBookingAfterRematchLimit(current);
+            final cancelled = await cancelBookingWhenNoPartnerAvailable(
+              current,
+            );
             return cancelled;
           }
         }
@@ -1187,10 +1172,10 @@ class ServiceBookingController extends GetxController {
     }
   }
 
-  Future<ServiceBookingEntity?> cancelBookingAfterRematchLimit(
+  Future<ServiceBookingEntity?> cancelBookingWhenNoPartnerAvailable(
     ServiceBookingEntity booking,
   ) async {
-    _logMatchmakingRematchBooking('cancelAfterRematchLimit:start', booking);
+    _logMatchmakingRematchBooking('cancelNoPartner:start', booking);
 
     if (!booking.canCancelBeforePartnerFound) {
       _handleCreateBookingFeedback(
@@ -1200,7 +1185,7 @@ class ServiceBookingController extends GetxController {
         isError: true,
       );
       debugPrint(
-        '[matchmaking-rematch] cancelAfterRematchLimit:skip '
+        '[matchmaking-rematch] cancelNoPartner:skip '
         'bookingId=${booking.id} canCancel=false',
       );
       return null;
@@ -1209,14 +1194,14 @@ class ServiceBookingController extends GetxController {
     try {
       final cancelled = await _cancelBookingUseCase(
         booking.id,
-        reason: 'Mitra belum tersedia setelah 2 kali rematch.',
+        reason: 'Tidak ada mitra tersedia untuk layanan ini.',
       );
       bookingDetail.value = cancelled;
       latestBooking.value = cancelled;
       stopBookingDetailPolling();
       _refreshActivities();
       _logMatchmakingRematchBooking(
-        'cancelAfterRematchLimit:success',
+        'cancelNoPartner:success',
         cancelled,
       );
       _handleCreateBookingFeedback(
@@ -1228,7 +1213,7 @@ class ServiceBookingController extends GetxController {
       return null;
     } on AppException catch (error) {
       debugPrint(
-        '[matchmaking-rematch] cancelAfterRematchLimit:appError '
+        '[matchmaking-rematch] cancelNoPartner:appError '
         'bookingId=${booking.id} message="${error.message}"',
       );
       _handleCreateBookingFeedback(
@@ -1240,7 +1225,7 @@ class ServiceBookingController extends GetxController {
       return null;
     } catch (error) {
       debugPrint(
-        '[matchmaking-rematch] cancelAfterRematchLimit:error '
+        '[matchmaking-rematch] cancelNoPartner:error '
         'bookingId=${booking.id} error=$error',
       );
       _handleCreateBookingFeedback(
@@ -1434,6 +1419,7 @@ class ServiceBookingController extends GetxController {
       'isWaitingAcceptance=${booking.isWaitingPartnerAcceptance} '
       'isSearchingReplacement=${booking.isSearchingReplacementPartner} '
       'shouldRematch=${booking.shouldRequestPartnerRematch} '
+      'isNoPartnerAvailable=${booking.isNoPartnerAvailable} '
       'partnerName="${booking.partnerName}" '
       'serviceId=${booking.serviceId} '
       'serviceName="${booking.serviceName}" '
