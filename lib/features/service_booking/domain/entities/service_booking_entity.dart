@@ -13,6 +13,16 @@ class ServiceBookingEntity {
     required this.notes,
     required this.status,
     required this.totalAmount,
+    required this.subtotal,
+    required this.discountAmount,
+    required this.transportFee,
+    required this.mealFee,
+    required this.visitPlan,
+    required this.recurrence,
+    required this.visitCount,
+    required this.careMode,
+    required this.locationType,
+    required this.distanceKm,
     required this.paymentStatus,
     required this.snapToken,
     required this.paymentReference,
@@ -41,6 +51,16 @@ class ServiceBookingEntity {
   final String? notes;
   final String status;
   final String? totalAmount;
+  final String? subtotal;
+  final String? discountAmount;
+  final String? transportFee;
+  final String? mealFee;
+  final String? visitPlan;
+  final String? recurrence;
+  final int? visitCount;
+  final String? careMode;
+  final String? locationType;
+  final double? distanceKm;
   final String? paymentStatus;
   final String? snapToken;
   final String? paymentReference;

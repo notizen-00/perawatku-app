@@ -2,10 +2,10 @@ import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:medic_patient_app/core/routes/app_routes.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/helpers/currency_formatter.dart';
-import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../home/controller/home_controller.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
@@ -24,11 +24,13 @@ class ServiceDetailPage extends StatelessWidget {
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor =
-        isDark ? AppColors.darkBackground : const Color(0xFFF8FBFA);
+    final backgroundColor = isDark
+        ? AppColors.darkBackground
+        : const Color(0xFFF8FBFA);
     final textColor = isDark ? AppColors.darkText : AppColors.lightText;
-    final mutedColor =
-        isDark ? AppColors.darkMutedText : AppColors.lightMutedText;
+    final mutedColor = isDark
+        ? AppColors.darkMutedText
+        : AppColors.lightMutedText;
     final price = CurrencyFormatter.formatRupiahFromString(
       service.price,
       emptyValue: 'Menyesuaikan',
@@ -81,8 +83,9 @@ class ServiceDetailPage extends StatelessWidget {
                       const SizedBox(height: 24),
                       Text(
                         'Deskripsi Layanan',
-                        style: Theme.of(context).textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w900),
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       Text(
@@ -144,9 +147,6 @@ class ServiceDetailPage extends StatelessWidget {
   static void _orderService(ServiceBookingServiceEntity service) {
     if (Get.isRegistered<HomeController>()) {
       Get.find<HomeController>().proceedWithServiceBooking(service);
-      if (Get.currentRoute == AppRoutes.serviceDetail) {
-        Get.back();
-      }
       return;
     }
 
@@ -290,8 +290,10 @@ class _ServiceHero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary,
                     borderRadius: BorderRadius.circular(999),
@@ -555,8 +557,11 @@ class _PreparationItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.check_circle_outline_rounded,
-              color: AppColors.primary, size: 20),
+          const Icon(
+            Icons.check_circle_outline_rounded,
+            color: AppColors.primary,
+            size: 20,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -571,10 +576,7 @@ class _PreparationItem extends StatelessWidget {
 }
 
 class _BottomOrderBar extends StatelessWidget {
-  const _BottomOrderBar({
-    required this.price,
-    required this.onPressed,
-  });
+  const _BottomOrderBar({required this.price, required this.onPressed});
 
   final String price;
   final VoidCallback onPressed;

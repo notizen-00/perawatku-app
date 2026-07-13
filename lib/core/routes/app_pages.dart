@@ -16,6 +16,7 @@ import '../../features/nurse/presentation/pages/nurse_page.dart';
 import '../../features/notification/presentation/pages/notification_page.dart';
 import '../../features/patient_member/presentation/pages/patient_member_page.dart';
 import '../../features/service_booking/presentation/bindings/service_booking_binding.dart';
+import '../../features/service_booking/presentation/pages/service_booking_checkout_page.dart';
 import '../../features/service_booking/presentation/pages/service_booking_detail_page.dart';
 import '../../features/service_booking/presentation/pages/service_booking_patient_picker_page.dart';
 import '../../features/service_booking/presentation/pages/service_detail_page.dart';
@@ -44,6 +45,11 @@ class AppPages {
     GetPage(
       name: AppRoutes.serviceDetail,
       page: () => const ServiceDetailPage(),
+    ),
+    GetPage(
+      name: AppRoutes.serviceBookingCheckout,
+      page: () => const ServiceBookingCheckoutPage(),
+      binding: ServiceBookingBinding(),
     ),
     GetPage(
       name: AppRoutes.serviceBookingPatientPicker,

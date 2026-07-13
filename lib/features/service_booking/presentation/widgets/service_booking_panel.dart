@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:lottie/lottie.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../patient_member/domain/entities/patient_member_entity.dart';
+import '../../domain/entities/service_booking_entity.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
 import '../controllers/service_booking_controller.dart';
 import 'inline_error.dart';
 
 class ServiceBookingPanel extends GetView<ServiceBookingController> {
-  const ServiceBookingPanel({super.key});
+  const ServiceBookingPanel({
+    super.key,
+    this.showHeader = true,
+    this.showServicePicker = true,
+    this.showSubmitButton = true,
+    this.showLatestStatus = true,
+  });
+
+  final bool showHeader;
+  final bool showServicePicker;
+  final bool showSubmitButton;
+  final bool showLatestStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -29,10 +42,14 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _BookingPanelHeader(),
-            const SizedBox(height: 14),
-            _ServicePickerSection(controller: controller),
-            const SizedBox(height: 12),
+            if (showHeader) ...[
+              const _BookingPanelHeader(),
+              const SizedBox(height: 14),
+            ],
+            if (showServicePicker) ...[
+              _ServicePickerSection(controller: controller),
+              const SizedBox(height: 12),
+            ],
             _PatientMemberPicker(
               members: controller.patientMembers,
               selectedMember: controller.selectedPatientMember.value,
@@ -58,28 +75,30 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
             ),
             const SizedBox(height: 10),
             _PromoCodeField(controller: controller),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: controller.isCreatingBooking.value
-                    ? null
-                    : controller.createBooking,
-                icon: controller.isCreatingBooking.value
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.payments_rounded),
-                label: Text(
-                  controller.isCreatingBooking.value
-                      ? 'Membuat booking...'
-                      : 'Buat booking & lanjut bayar',
+            if (showSubmitButton) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: controller.isCreatingBooking.value
+                      ? null
+                      : () => _createBookingWithLoading(context),
+                  icon: controller.isCreatingBooking.value
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.payments_rounded),
+                  label: Text(
+                    controller.isCreatingBooking.value
+                        ? 'Membuat booking...'
+                        : 'Buat booking & lanjut bayar',
+                  ),
                 ),
               ),
-            ),
-            if (controller.latestBooking.value != null) ...[
+            ],
+            if (showLatestStatus && controller.latestBooking.value != null) ...[
               const SizedBox(height: 12),
               _MatchmakingStatusCard(
                 isPaid: controller.latestBooking.value?.isPaid == true,
@@ -104,6 +123,120 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
           ],
         );
       }),
+    );
+  }
+
+  Future<void> _createBookingWithLoading(BuildContext context) async {
+    final loadingFuture = _showBookingLoadingDialog(context);
+    final createFuture = controller.createBooking();
+
+    final results = await Future.wait<Object?>([
+      createFuture,
+      Future<void>.delayed(const Duration(seconds: 4)).then(
+        (_) => null,
+      ),
+    ]);
+    final booking = results.first as ServiceBookingEntity?;
+    final serviceName = controller.selectedService.value?.name;
+    final patientName = controller.selectedPatientMember.value?.name;
+
+    if (Get.isDialogOpen == true) {
+      Get.back<void>();
+    }
+
+    await loadingFuture;
+
+    if (booking == null) {
+      return;
+    }
+
+    await Get.toNamed(
+      AppRoutes.serviceBookingDetail,
+      arguments: {
+        'bookingId': booking.id,
+        'booking': booking,
+        'serviceName': serviceName,
+        'patientName': patientName,
+      },
+    );
+    await controller.resetMatchmakingForm(reloadCatalog: false);
+  }
+
+  Future<void> _showBookingLoadingDialog(BuildContext context) {
+    return Get.dialog<void>(
+      const _BookingLoadingDialog(),
+      barrierDismissible: false,
+    );
+  }
+}
+
+class _BookingLoadingDialog extends StatelessWidget {
+  const _BookingLoadingDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return PopScope(
+      canPop: false,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 44),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.38 : 0.12),
+                blurRadius: 30,
+                offset: const Offset(0, 18),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 132,
+                height: 132,
+                child: Lottie.asset(
+                  'assets/medic-loading.json',
+                  fit: BoxFit.contain,
+                  repeat: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Menyiapkan booking',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Kami sedang memproses layanan dan estimasi pembayaran.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.darkMutedText
+                      : AppColors.lightMutedText,
+                  fontSize: 12.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -178,8 +311,9 @@ class _MatchmakingStatusCard extends StatelessWidget {
                       ? 'Backend sedang mencari mitra yang sesuai untuk layanan ini.'
                       : 'Matchmaking akan berjalan setelah pembayaran berhasil.',
                   style: TextStyle(
-                    color:
-                        isDark ? AppColors.darkMutedText : AppColors.lightMutedText,
+                    color: isDark
+                        ? AppColors.darkMutedText
+                        : AppColors.lightMutedText,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -670,37 +804,41 @@ class _ScheduleForm extends StatelessWidget {
     return Obx(() {
       final isRecurring = controller.isRecurringSchedule;
       final selectedSchedule = controller.selectedScheduleOption.value;
+      final supportsRecurring =
+          controller.selectedServiceSupportsRecurringSchedule;
 
       return Column(
         children: [
-          DropdownButtonFormField<String>(
-            value: selectedSchedule,
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Pola jadwal',
-              prefixIcon: Icon(Icons.event_repeat_rounded),
+          if (supportsRecurring) ...[
+            DropdownButtonFormField<String>(
+              value: selectedSchedule,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Pola jadwal',
+                prefixIcon: Icon(Icons.event_repeat_rounded),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: ServiceScheduleOption.once,
+                  child: Text('Sekali visit'),
+                ),
+                DropdownMenuItem(
+                  value: ServiceScheduleOption.weekly,
+                  child: Text('Mingguan'),
+                ),
+                DropdownMenuItem(
+                  value: ServiceScheduleOption.monthly,
+                  child: Text('Bulanan'),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  controller.selectScheduleOption(value);
+                }
+              },
             ),
-            items: const [
-              DropdownMenuItem(
-                value: ServiceScheduleOption.once,
-                child: Text('Sekali visit'),
-              ),
-              DropdownMenuItem(
-                value: ServiceScheduleOption.weekly,
-                child: Text('Mingguan'),
-              ),
-              DropdownMenuItem(
-                value: ServiceScheduleOption.monthly,
-                child: Text('Bulanan'),
-              ),
-            ],
-            onChanged: (value) {
-              if (value != null) {
-                controller.selectScheduleOption(value);
-              }
-            },
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
+          ],
           _ScheduledAtField(
             controller: controller,
             labelText: isRecurring
@@ -736,11 +874,12 @@ class _ScheduleForm extends StatelessWidget {
                       value: ServiceCareMode.visit,
                       child: Text('Visit'),
                     ),
-                    DropdownMenuItem(
-                      value: ServiceCareMode.liveIn,
-                      enabled: isRecurring,
-                      child: const Text('Live-in'),
-                    ),
+                    if (supportsRecurring)
+                      DropdownMenuItem(
+                        value: ServiceCareMode.liveIn,
+                        enabled: isRecurring,
+                        child: const Text('Live-in'),
+                      ),
                   ],
                   onChanged: (value) {
                     if (value != null) {

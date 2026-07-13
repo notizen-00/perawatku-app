@@ -31,6 +31,10 @@ class ServiceBookingServiceModel extends ServiceBookingServiceEntity {
         ? (json['service_category'] ?? service['service_category'])
             as Map<String, dynamic>
         : <String, dynamic>{};
+    final pricing = (json['pricing'] ?? service['pricing'])
+            is Map<String, dynamic>
+        ? (json['pricing'] ?? service['pricing']) as Map<String, dynamic>
+        : <String, dynamic>{};
     final nestedServiceId = _readInt(service['id']);
     final explicitServiceId = _readInt(
       json['service_id'] ??
@@ -66,6 +70,11 @@ class ServiceBookingServiceModel extends ServiceBookingServiceEntity {
       'rootImage="${json['image']}" nestedImage="${service['image']}"',
       name: 'image-show',
     );
+    final fixedPrice = _resolveFixedServicePrice(
+      json: json,
+      service: service,
+      pricing: pricing,
+    );
 
     return ServiceBookingServiceModel(
       id: rowId,
@@ -92,13 +101,7 @@ class ServiceBookingServiceModel extends ServiceBookingServiceEntity {
       serviceMode: _readString(service['service_mode'] ?? json['service_mode']),
       description: _readString(service['description'] ?? json['description']),
       image: image,
-      price: _readString(
-        service['base_price'] ??
-            json['base_price'] ??
-            json['price'] ??
-            json['fee'] ??
-            json['amount'],
-      ),
+      price: fixedPrice,
       estimatedDuration: _readString(
         service['duration_minutes'] ??
             json['duration_minutes'] ??
@@ -129,6 +132,24 @@ class ServiceBookingServiceModel extends ServiceBookingServiceEntity {
       return null;
     }
     return text;
+  }
+
+  static String? _resolveFixedServicePrice({
+    required Map<String, dynamic> json,
+    required Map<String, dynamic> service,
+    required Map<String, dynamic> pricing,
+  }) {
+    return _readString(
+      pricing['final_price'] ??
+          json['final_price'] ??
+          service['final_price'] ??
+          pricing['base_price'] ??
+          service['base_price'] ??
+          json['base_price'] ??
+          json['service_base_price'] ??
+          service['admin_price'] ??
+          json['admin_price'],
+    );
   }
 
   static bool _readBool(dynamic value) {

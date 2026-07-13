@@ -344,11 +344,15 @@ class ServiceBookingController extends GetxController {
       final currentService = result.where(
         (service) => service.bookingServiceId == currentServiceId,
       );
-      selectedService.value = selectFirstService
+      final nextSelectedService = selectFirstService
           ? (result.isEmpty ? null : result.first)
           : currentService.isEmpty
           ? null
           : currentService.first;
+      selectedService.value = nextSelectedService;
+      if (nextSelectedService != null) {
+        _normalizeScheduleForSelectedService(nextSelectedService);
+      }
       services.assignAll(result);
       if (serviceCategoryOptions.isEmpty) {
         serviceCategoryOptions.assignAll(_buildServiceCategoryOptions(result));
@@ -387,8 +391,53 @@ class ServiceBookingController extends GetxController {
     selectedService.value = service;
     promoStatusMessage.value = null;
     isPromoValid.value = false;
+    _normalizeScheduleForSelectedService(service);
     _logServiceState(
       'selectService serviceId=${service.bookingServiceId} name="${service.name}"',
+    );
+  }
+
+  void primeSelectedService(ServiceBookingServiceEntity service) {
+    final key = serviceCategoryKey(service);
+    selectedServiceCategoryKey.value = key;
+    selectedService.value = service;
+    promoStatusMessage.value = null;
+    isPromoValid.value = false;
+    _normalizeScheduleForSelectedService(service);
+
+    final cached = _servicesByCategoryKey[key] ?? <ServiceBookingServiceEntity>[];
+    final hasService = cached.any(
+      (item) => item.bookingServiceId == service.bookingServiceId,
+    );
+    if (!hasService) {
+      _servicesByCategoryKey[key] = <ServiceBookingServiceEntity>[
+        service,
+        ...cached,
+      ];
+    }
+
+    if (services.every(
+      (item) => item.bookingServiceId != service.bookingServiceId,
+    )) {
+      services.assignAll(<ServiceBookingServiceEntity>[service, ...services]);
+    }
+
+    if (serviceCategoryOptions.every((category) => category.key != key)) {
+      serviceCategoryOptions.add(
+        ServiceCategoryOption(
+          key: key,
+          id: service.categoryId,
+          name: serviceCategoryName(service),
+          icon: service.categoryIcon,
+        ),
+      );
+      serviceCategoryOptions.sort((first, second) {
+        return first.name.compareTo(second.name);
+      });
+    }
+
+    _logServiceState(
+      'primeSelectedService serviceId=${service.bookingServiceId} name="${service.name}"',
     );
   }
 
@@ -405,7 +454,7 @@ class ServiceBookingController extends GetxController {
       serviceCategoryOptions.assignAll(_buildServiceCategoryOptions(result));
       for (final service in result) {
         if (service.bookingServiceId == serviceId) {
-          selectedServiceCategoryKey.value = serviceCategoryKey(service);
+          primeSelectedService(service);
           await loadServices(
             categoryId: service.categoryId,
             category: serviceCategoryName(service),
@@ -416,7 +465,7 @@ class ServiceBookingController extends GetxController {
               return true;
             }
           }
-          selectedService.value = service;
+          primeSelectedService(service);
           return true;
         }
       }
@@ -507,6 +556,7 @@ class ServiceBookingController extends GetxController {
     if (cachedServices.isNotEmpty) {
       services.assignAll(cachedServices);
       selectedService.value = cachedServices.first;
+      _normalizeScheduleForSelectedService(cachedServices.first);
       _logServiceState(
         'selectServiceCategory:useCache count=${cachedServices.length}',
       );
@@ -590,8 +640,14 @@ class ServiceBookingController extends GetxController {
   }
 
   void selectScheduleOption(String option) {
-    selectedScheduleOption.value = option;
-    if (option == ServiceScheduleOption.once) {
+    final service = selectedService.value;
+    final nextOption = option == ServiceScheduleOption.once ||
+            service == null ||
+            serviceSupportsRecurringSchedule(service)
+        ? option
+        : ServiceScheduleOption.once;
+    selectedScheduleOption.value = nextOption;
+    if (nextOption == ServiceScheduleOption.once) {
       selectedCareMode.value = ServiceCareMode.visit;
     }
   }
@@ -652,7 +708,7 @@ class ServiceBookingController extends GetxController {
     return available.first;
   }
 
-  Future<void> createBooking() async {
+  Future<ServiceBookingEntity?> createBooking() async {
     final service = selectedService.value;
     final patientMember = selectedPatientMember.value;
 
@@ -661,7 +717,7 @@ class ServiceBookingController extends GetxController {
         'Pilih layanan',
         'Pilih layanan homecare dari katalog backend terlebih dahulu.',
       );
-      return;
+      return null;
     }
 
     if (service.bookingServiceId <= 0) {
@@ -669,7 +725,7 @@ class ServiceBookingController extends GetxController {
         'Layanan tidak valid',
         'ID layanan dari katalog backend kosong. Muat ulang katalog layanan.',
       );
-      return;
+      return null;
     }
 
     if (patientMember == null) {
@@ -677,7 +733,7 @@ class ServiceBookingController extends GetxController {
         'Pilih profil pasien',
         'Pilih profil pasien keluarga yang akan menerima layanan.',
       );
-      return;
+      return null;
     }
 
     if (scheduledAtController.text.trim().isEmpty) {
@@ -685,7 +741,7 @@ class ServiceBookingController extends GetxController {
         'Pilih tanggal kunjungan',
         'Tentukan jadwal sebelum membuat booking layanan ini.',
       );
-      return;
+      return null;
     }
 
     final visitCount = _readVisitCount();
@@ -694,7 +750,7 @@ class ServiceBookingController extends GetxController {
         'Jumlah kunjungan belum valid',
         'Isi minimal 2 kunjungan untuk jadwal mingguan atau bulanan.',
       );
-      return;
+      return null;
     }
 
     if (isRecurringSchedule && visitCount != null && visitCount > 52) {
@@ -702,7 +758,7 @@ class ServiceBookingController extends GetxController {
         'Jumlah kunjungan terlalu banyak',
         'Maksimal 52 kunjungan untuk jadwal mingguan atau bulanan.',
       );
-      return;
+      return null;
     }
 
     isCreatingBooking.value = true;
@@ -725,15 +781,18 @@ class ServiceBookingController extends GetxController {
 
       AppSnackbar.success(
         'Booking dibuat',
-        'Selesaikan pembayaran dulu agar backend mulai mencari mitra.',
+        'Detail booking sedang dibuka.',
       );
+      return booking;
     } on AppException catch (error) {
       AppSnackbar.error('Booking gagal', error.message);
+      return null;
     } catch (_) {
       AppSnackbar.error(
         'Booking gagal',
         'Tidak bisa membuat booking layanan saat ini.',
       );
+      return null;
     } finally {
       isCreatingBooking.value = false;
     }
@@ -1036,6 +1095,41 @@ class ServiceBookingController extends GetxController {
     final option = selectedScheduleOption.value;
     return option == ServiceScheduleOption.weekly ||
         option == ServiceScheduleOption.monthly;
+  }
+
+  bool get selectedServiceSupportsRecurringSchedule {
+    final service = selectedService.value;
+    return service != null && serviceSupportsRecurringSchedule(service);
+  }
+
+  bool serviceSupportsRecurringSchedule(ServiceBookingServiceEntity service) {
+    final haystack = [
+      service.name,
+      service.category,
+      service.categoryName,
+      service.serviceType,
+      service.serviceMode,
+      service.description,
+    ].whereType<String>().join(' ').toLowerCase();
+
+    return haystack.contains('caregiver') ||
+        haystack.contains('care giver') ||
+        haystack.contains('pendamping') ||
+        haystack.contains('harian') ||
+        haystack.contains('live-in') ||
+        haystack.contains('live in');
+  }
+
+  void _normalizeScheduleForSelectedService(ServiceBookingServiceEntity service) {
+    if (!serviceSupportsRecurringSchedule(service) && isRecurringSchedule) {
+      selectedScheduleOption.value = ServiceScheduleOption.once;
+      selectedCareMode.value = ServiceCareMode.visit;
+      return;
+    }
+
+    if (!isRecurringSchedule) {
+      selectedCareMode.value = ServiceCareMode.visit;
+    }
   }
 
   int? _readVisitCount() {

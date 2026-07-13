@@ -15,6 +15,16 @@ class ServiceBookingModel extends ServiceBookingEntity {
     required super.notes,
     required super.status,
     required super.totalAmount,
+    required super.subtotal,
+    required super.discountAmount,
+    required super.transportFee,
+    required super.mealFee,
+    required super.visitPlan,
+    required super.recurrence,
+    required super.visitCount,
+    required super.careMode,
+    required super.locationType,
+    required super.distanceKm,
     required super.paymentStatus,
     required super.snapToken,
     required super.paymentReference,
@@ -44,6 +54,11 @@ class ServiceBookingModel extends ServiceBookingEntity {
         _readMap(booking['payment']) ??
         _readMap(data?['payment']) ??
         _readMap(root['payment']) ??
+        <String, dynamic>{};
+    final pricing =
+        _readMap(booking['pricing']) ??
+        _readMap(data?['pricing']) ??
+        _readMap(root['pricing']) ??
         <String, dynamic>{};
     final transaction =
         _readMap(booking['transaction']) ??
@@ -124,9 +139,33 @@ class ServiceBookingModel extends ServiceBookingEntity {
       status: _readString(booking['status']) ?? 'pending',
       totalAmount: _readString(
         booking['total_amount'] ??
+            pricing['total_amount'] ??
             booking['grand_total'] ??
             booking['amount'] ??
             payment['amount'],
+      ),
+      subtotal: _readString(booking['subtotal'] ?? pricing['subtotal']),
+      discountAmount: _readString(
+        booking['discount_amount'] ?? pricing['discount_amount'],
+      ),
+      transportFee: _readString(
+        booking['transport_fee'] ?? pricing['transport_fee'],
+      ),
+      mealFee: _readString(booking['meal_fee'] ?? pricing['meal_fee']),
+      visitPlan: _readString(booking['visit_plan'] ?? data?['visit_plan']),
+      recurrence: _readString(booking['recurrence'] ?? data?['recurrence']),
+      visitCount: _readInt(
+        booking['visit_count'] ?? pricing['visit_count'] ?? data?['visit_count'],
+      ),
+      careMode: _readString(booking['care_mode'] ?? data?['care_mode']),
+      locationType: _readString(
+        booking['location_type'] ?? data?['location_type'],
+      ),
+      distanceKm: _readDouble(
+        booking['distance_km'] ??
+            data?['distance_km'] ??
+            pricing['distance_km'] ??
+            matchmakingJson?['distance_km'],
       ),
       paymentStatus: _readString(
         booking['payment_status'] ??

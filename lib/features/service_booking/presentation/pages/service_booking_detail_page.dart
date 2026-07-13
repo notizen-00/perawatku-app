@@ -492,11 +492,49 @@ class _ServiceBookingOrderDetailPageState
               icon: Icons.payments_rounded,
               rows: [
                 _DetailRow(
+                  label: 'Subtotal',
+                  value: CurrencyFormatter.formatRupiahFromString(
+                    booking.subtotal,
+                    emptyValue: '-',
+                  ),
+                ),
+                _DetailRow(
+                  label: 'Diskon',
+                  value: CurrencyFormatter.formatRupiahFromString(
+                    booking.discountAmount,
+                    emptyValue: '-',
+                  ),
+                ),
+                _DetailRow(
+                  label: 'Transportasi',
+                  value: CurrencyFormatter.formatRupiahFromString(
+                    booking.transportFee,
+                    emptyValue: '-',
+                  ),
+                ),
+                _DetailRow(
+                  label: 'Uang makan',
+                  value: CurrencyFormatter.formatRupiahFromString(
+                    booking.mealFee,
+                    emptyValue: '-',
+                  ),
+                ),
+                _DetailRow(
                   label: 'Total',
                   value: CurrencyFormatter.formatRupiahFromString(
                     booking.totalAmount,
                     emptyValue: '-',
                   ),
+                ),
+                _DetailRow(
+                  label: 'Jadwal',
+                  value: _formatVisitPlan(booking),
+                ),
+                _DetailRow(
+                  label: 'Jarak biaya',
+                  value: booking.distanceKm == null
+                      ? '-'
+                      : '${booking.distanceKm!.toStringAsFixed(1)} km',
                 ),
                 _DetailRow(
                   label: 'Status bayar',
@@ -552,6 +590,24 @@ class _ServiceBookingOrderDetailPageState
     }
 
     return '${latitude.toStringAsFixed(6)}, ${longitude.toStringAsFixed(6)}';
+  }
+
+  String _formatVisitPlan(ServiceBookingEntity booking) {
+    final visitPlan = booking.visitPlan ?? '-';
+    final recurrence = booking.recurrence;
+    final visitCount = booking.visitCount;
+    if (visitPlan == '-' || visitPlan == 'once') {
+      return 'Sekali kunjungan';
+    }
+
+    final parts = <String>['Berulang'];
+    if (recurrence != null && recurrence.trim().isNotEmpty) {
+      parts.add(recurrence == 'monthly' ? 'bulanan' : 'mingguan');
+    }
+    if (visitCount != null) {
+      parts.add('$visitCount visit');
+    }
+    return parts.join(' - ');
   }
 }
 
@@ -716,6 +772,8 @@ class _PremiumBookingExperience extends StatelessWidget {
                   onConfirmCompletion: onConfirmCompletion,
                 ),
                 const SizedBox(height: 14),
+                _PricingBreakdownCard(booking: booking, isDark: isDark),
+                const SizedBox(height: 14),
                 _PrimaryTrackingActions(
                   booking: booking,
                   isOpeningPayment: isOpeningPayment,
@@ -779,6 +837,128 @@ class _PremiumBookingExperience extends StatelessWidget {
       return 'Map aktif saat mitra mulai menuju lokasi.';
     }
     return 'Kami mencari mitra yang sesuai untuk pesanan ini.';
+  }
+}
+
+class _PricingBreakdownCard extends StatelessWidget {
+  const _PricingBreakdownCard({required this.booking, required this.isDark});
+
+  final ServiceBookingEntity booking;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF12211F) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : const Color(0xFFE3ECE8),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Ringkasan biaya',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              Text(
+                _money(booking.totalAmount),
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _PricingLine(label: 'Subtotal', value: _money(booking.subtotal)),
+          _PricingLine(label: 'Diskon', value: _money(booking.discountAmount)),
+          _PricingLine(
+            label: 'Transportasi',
+            value: _money(booking.transportFee),
+          ),
+          _PricingLine(label: 'Uang makan', value: _money(booking.mealFee)),
+          if (booking.distanceKm != null || booking.visitCount != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _feeNote(booking),
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.darkMutedText
+                    : AppColors.lightMutedText,
+                fontSize: 12,
+                height: 1.35,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  static String _money(String? amount) {
+    return CurrencyFormatter.formatRupiahFromString(amount, emptyValue: '-');
+  }
+
+  static String _feeNote(ServiceBookingEntity booking) {
+    final notes = <String>[];
+    if (booking.visitCount != null) {
+      notes.add('${booking.visitCount} visit');
+    }
+    if (booking.distanceKm != null) {
+      notes.add('jarak ${booking.distanceKm!.toStringAsFixed(1)} km');
+    }
+    if (booking.careMode == 'live_in') {
+      notes.add('live-in');
+    }
+    return notes.join(' - ');
+  }
+}
+
+class _PricingLine extends StatelessWidget {
+  const _PricingLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 7),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.darkMutedText
+                    : AppColors.lightMutedText,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
   }
 }
 
