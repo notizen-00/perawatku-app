@@ -6,6 +6,7 @@ import '../../../../core/services/reverb_websocket_service.dart';
 import '../../../../core/services/storage_service.dart';
 import '../../../doctor/presentation/models/doctor_chat_arguments.dart';
 import '../../../home/controller/home_controller.dart';
+import '../../../service_booking/presentation/controllers/service_booking_controller.dart';
 import '../../data/models/notification_model.dart';
 import '../../domain/entities/notification_entity.dart';
 import '../../domain/repositories/notification_repository.dart';
@@ -236,7 +237,31 @@ class NotificationController extends GetxController {
       }
     }
 
+    _refreshServiceBookingFromNotification(notification);
     AppSnackbar.notification(notification.title, notification.body);
+  }
+
+  void _refreshServiceBookingFromNotification(NotificationEntity notification) {
+    final isServiceBookingEvent =
+        notification.referenceType == 'service_booking' ||
+        notification.type.startsWith('service_booking.');
+    if (!isServiceBookingEvent ||
+        !Get.isRegistered<ServiceBookingController>()) {
+      return;
+    }
+
+    final bookingId = _readInt(
+      notification.data['service_booking_id'] ??
+          notification.data['booking_id'] ??
+          notification.data['id'] ??
+          notification.referenceId,
+    );
+    if (bookingId == null || bookingId <= 0) {
+      return;
+    }
+
+    final controller = Get.find<ServiceBookingController>();
+    controller.loadBookingDetailSilently(bookingId);
   }
 
   Map<String, dynamic> _extractNotificationPayload(

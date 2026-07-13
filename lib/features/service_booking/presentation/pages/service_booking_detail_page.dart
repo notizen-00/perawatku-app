@@ -202,6 +202,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
                       isLivePolling: controller.isLivePollingBookingDetail,
                       isConfirmingCompletion: controller.isConfirmingCompletion,
                       isOpeningPayment: controller.isOpeningPayment,
+                      isRematchingPartner: controller.isRematchingPartner,
                       isLoadingBookingDetail: controller.isLoadingBookingDetail,
                       onRefreshRoute: () => _loadTrackingRoute(booking),
                       onRefreshDetail: () =>
@@ -212,6 +213,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
                         await controller.openLatestBookingPayment();
                         await controller.loadBookingDetail(arguments.bookingId);
                       },
+                      onRematch: () => controller.requestPartnerRematch(booking),
                       onConfirmCompletion: () => controller
                           .confirmBookingCompletion(arguments.bookingId),
                     ),
@@ -712,11 +714,13 @@ class _PremiumBookingExperience extends StatelessWidget {
     required this.isLivePolling,
     required this.isConfirmingCompletion,
     required this.isOpeningPayment,
+    required this.isRematchingPartner,
     required this.isLoadingBookingDetail,
     required this.onRefreshRoute,
     required this.onRefreshDetail,
     required this.onOpenDetail,
     required this.onPay,
+    required this.onRematch,
     required this.onConfirmCompletion,
   });
 
@@ -730,11 +734,13 @@ class _PremiumBookingExperience extends StatelessWidget {
   final RxBool isLivePolling;
   final RxBool isConfirmingCompletion;
   final RxBool isOpeningPayment;
+  final RxBool isRematchingPartner;
   final RxBool isLoadingBookingDetail;
   final VoidCallback onRefreshRoute;
   final VoidCallback onRefreshDetail;
   final VoidCallback onOpenDetail;
   final VoidCallback onPay;
+  final VoidCallback onRematch;
   final VoidCallback onConfirmCompletion;
 
   @override
@@ -866,10 +872,12 @@ class _PremiumBookingExperience extends StatelessWidget {
                 _PrimaryTrackingActions(
                   booking: booking,
                   isOpeningPayment: isOpeningPayment,
+                  isRematchingPartner: isRematchingPartner,
                   isLoadingBookingDetail: isLoadingBookingDetail,
                   onOpenDetail: onOpenDetail,
                   onRefreshDetail: onRefreshDetail,
                   onPay: onPay,
+                  onRematch: onRematch,
                 ),
               ],
             ),
@@ -906,6 +914,9 @@ class _PremiumBookingExperience extends StatelessWidget {
     if (status == 'confirmed' || status == 'scheduled') {
       return 'Mitra Disiapkan';
     }
+    if (booking.canRequestPartnerRematch) {
+      return 'Mitra Belum Tersedia';
+    }
     if (booking.isSearchingReplacementPartner) {
       return 'Mencari Mitra';
     }
@@ -930,6 +941,9 @@ class _PremiumBookingExperience extends StatelessWidget {
     }
     if (status == 'confirmed' || status == 'scheduled') {
       return 'Map aktif saat mitra mulai menuju lokasi.';
+    }
+    if (booking.canRequestPartnerRematch) {
+      return 'Belum ada mitra pengganti yang tersedia. Anda bisa coba cari mitra lagi.';
     }
     if (booking.isSearchingReplacementPartner) {
       return 'Mitra sebelumnya belum menerima. Sistem mencari pengganti.';
@@ -1139,18 +1153,22 @@ class _PrimaryTrackingActions extends StatelessWidget {
   const _PrimaryTrackingActions({
     required this.booking,
     required this.isOpeningPayment,
+    required this.isRematchingPartner,
     required this.isLoadingBookingDetail,
     required this.onOpenDetail,
     required this.onRefreshDetail,
     required this.onPay,
+    required this.onRematch,
   });
 
   final ServiceBookingEntity booking;
   final RxBool isOpeningPayment;
+  final RxBool isRematchingPartner;
   final RxBool isLoadingBookingDetail;
   final VoidCallback onOpenDetail;
   final VoidCallback onRefreshDetail;
   final VoidCallback onPay;
+  final VoidCallback onRematch;
 
   @override
   Widget build(BuildContext context) {
@@ -1178,31 +1196,56 @@ class _PrimaryTrackingActions extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: FilledButton.icon(
-              onPressed:
-                  booking.isPaid ||
-                      !booking.isAcceptedByPartner ||
-                      isOpeningPayment.value
-                  ? null
-                  : onPay,
-              icon: isOpeningPayment.value
+              onPressed: _isPrimaryActionDisabled ? null : _onPrimaryAction,
+              icon: isOpeningPayment.value || isRematchingPartner.value
                   ? const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.payments_rounded),
-              label: Text(
-                booking.isPaid
-                    ? 'Terbayar'
-                    : booking.isAcceptedByPartner
-                    ? 'Bayar'
-                    : 'Menunggu Mitra',
-              ),
+                  : Icon(_primaryActionIcon),
+              label: Text(_primaryActionLabel),
             ),
           ),
         ],
       ),
     );
+  }
+
+  bool get _isPrimaryActionDisabled {
+    if (booking.canRequestPartnerRematch) {
+      return isRematchingPartner.value;
+    }
+    return booking.isPaid ||
+        !booking.isAcceptedByPartner ||
+        isOpeningPayment.value;
+  }
+
+  VoidCallback get _onPrimaryAction {
+    if (booking.canRequestPartnerRematch) {
+      return onRematch;
+    }
+    return onPay;
+  }
+
+  IconData get _primaryActionIcon {
+    if (booking.canRequestPartnerRematch) {
+      return Icons.manage_search_rounded;
+    }
+    return Icons.payments_rounded;
+  }
+
+  String get _primaryActionLabel {
+    if (booking.canRequestPartnerRematch) {
+      return isRematchingPartner.value ? 'Mencari...' : 'Cari mitra lagi';
+    }
+    if (booking.isPaid) {
+      return 'Terbayar';
+    }
+    if (booking.isAcceptedByPartner) {
+      return 'Bayar';
+    }
+    return 'Menunggu Mitra';
   }
 }
 

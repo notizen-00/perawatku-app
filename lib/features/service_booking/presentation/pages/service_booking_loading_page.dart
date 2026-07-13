@@ -52,6 +52,8 @@ class ServiceBookingLoadingPage extends StatelessWidget {
                   textColor: textColor,
                   mutedColor: mutedColor,
                 ),
+                const SizedBox(height: 18),
+                const _ManualRematchAction(),
                 const SizedBox(height: 24),
                 const _LoadingSteps(),
                 const Spacer(),
@@ -120,6 +122,9 @@ class _LoadingStatusText extends StatelessWidget {
     if (booking == null) {
       return fallbackTitle;
     }
+    if (booking.canRequestPartnerRematch) {
+      return 'Mitra belum tersedia';
+    }
     if (booking.isSearchingReplacementPartner) {
       return 'Mencari mitra pengganti';
     }
@@ -138,6 +143,9 @@ class _LoadingStatusText extends StatelessWidget {
     }
     if (booking == null) {
       return fallbackSubtitle;
+    }
+    if (booking.canRequestPartnerRematch) {
+      return 'Belum ada mitra pengganti yang tersedia. Anda bisa coba cari mitra lagi tanpa membuat pesanan baru.';
     }
     if (booking.isSearchingReplacementPartner) {
       return 'Mitra sebelumnya belum menerima. Sistem sedang mencari mitra lain dan memperbarui estimasi biaya.';
@@ -192,6 +200,46 @@ class _StatusCopy extends StatelessWidget {
   }
 }
 
+class _ManualRematchAction extends StatelessWidget {
+  const _ManualRematchAction();
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Get.isRegistered<ServiceBookingController>()) {
+      return const SizedBox.shrink();
+    }
+
+    final controller = Get.find<ServiceBookingController>();
+    return Obx(() {
+      final booking = controller.latestBooking.value;
+      if (booking == null || !booking.canRequestPartnerRematch) {
+        return const SizedBox.shrink();
+      }
+
+      return SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: controller.isRematchingPartner.value
+              ? null
+              : () => controller.requestPartnerRematch(booking),
+          icon: controller.isRematchingPartner.value
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.manage_search_rounded),
+          label: Text(
+            controller.isRematchingPartner.value
+                ? 'Mencari mitra...'
+                : 'Cari mitra lagi',
+          ),
+        ),
+      );
+    });
+  }
+}
+
 class _LoadingSteps extends StatelessWidget {
   const _LoadingSteps();
 
@@ -215,6 +263,8 @@ class _LoadingSteps extends StatelessWidget {
       final isRematching = controller.isRematchingPartner.value;
       final lastStep = isRematching
           ? 'Mengirim permintaan cari mitra baru'
+          : booking?.canRequestPartnerRematch == true
+          ? 'Belum ada mitra tersedia, coba cari mitra lagi'
           : booking?.isSearchingReplacementPartner == true
           ? 'Mencari mitra pengganti yang tersedia'
           : 'Menunggu mitra menerima pesanan';

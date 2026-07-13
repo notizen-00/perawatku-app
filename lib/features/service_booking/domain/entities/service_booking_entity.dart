@@ -104,43 +104,23 @@ class ServiceBookingEntity {
 
   bool get isWaitingPartnerAcceptance {
     final normalizedStatus = status.toLowerCase().trim();
-    final normalizedMatchmakingStatus =
-        matchmakingStatus?.toLowerCase().trim() ?? '';
     return !isAcceptedByPartner &&
         normalizedStatus == 'pending' &&
-        (assignedPartnerUserId != null ||
-            normalizedMatchmakingStatus == 'waiting_partner_acceptance' ||
-            normalizedMatchmakingStatus == 'rematched' ||
-            normalizedMatchmakingStatus ==
-                'rematched_waiting_partner_acceptance');
+        assignedPartnerUserId != null;
   }
 
   bool get isSearchingReplacementPartner {
     final normalizedStatus = status.toLowerCase().trim();
+    return !isAcceptedByPartner &&
+        normalizedStatus == 'pending' &&
+        assignedPartnerUserId == null;
+  }
+
+  bool get canRequestPartnerRematch {
     final normalizedMatchmakingStatus =
         matchmakingStatus?.toLowerCase().trim() ?? '';
     return !isAcceptedByPartner &&
-        normalizedStatus == 'pending' &&
-        assignedPartnerUserId == null &&
-        normalizedMatchmakingStatus != 'waiting_partner_acceptance' &&
-        normalizedMatchmakingStatus != 'rematched' &&
-        normalizedMatchmakingStatus !=
-            'rematched_waiting_partner_acceptance';
-  }
-
-  bool get shouldRequestPartnerRematch {
-    final normalizedMatchmakingStatus =
-        matchmakingStatus?.toLowerCase().trim() ?? '';
-    return isSearchingReplacementPartner ||
-        normalizedMatchmakingStatus == 'waiting_partner_available';
-  }
-
-  bool get isNoPartnerAvailable {
-    final normalizedStatus = status.toLowerCase().trim();
-    final normalizedMatchmakingStatus =
-        matchmakingStatus?.toLowerCase().trim() ?? '';
-    return !isAcceptedByPartner &&
-        normalizedStatus == 'pending' &&
+        status.toLowerCase().trim() == 'pending' &&
         assignedPartnerUserId == null &&
         normalizedMatchmakingStatus == 'waiting_partner_available';
   }

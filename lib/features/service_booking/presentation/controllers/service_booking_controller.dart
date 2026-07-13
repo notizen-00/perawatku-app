@@ -1050,37 +1050,8 @@ class ServiceBookingController extends GetxController {
           return current;
         }
 
-        if (current.shouldRequestPartnerRematch) {
-          _logMatchmakingRematchBooking('wait:rematchRequired', current);
-          final rematched = await rematchBookingSilently(
-            current.id,
-            notes: 'Cari mitra pengganti lagi.',
-          );
-          if (rematched != null) {
-            current = rematched;
-            _logMatchmakingRematchBooking('wait:rematchResult', current);
-          } else {
-            debugPrint(
-              '[matchmaking-rematch] wait:rematchResult null '
-              'bookingId=${current.id}',
-            );
-          }
-
-          if (current.isAcceptedByPartner) {
-            _logMatchmakingRematchBooking('wait:acceptedAfterRematch', current);
-            return current;
-          }
-
-          if (current.isNoPartnerAvailable) {
-            debugPrint(
-              '[matchmaking-rematch] wait:noPartnerAvailableAfterRematch '
-              'bookingId=${current.id}',
-            );
-            final cancelled = await cancelBookingWhenNoPartnerAvailable(
-              current,
-            );
-            return cancelled;
-          }
+        if (current.isSearchingReplacementPartner) {
+          _logMatchmakingRematchBooking('wait:findingReplacement', current);
         }
 
         if (current.status.toLowerCase().trim() == 'cancelled') {
@@ -1172,70 +1143,42 @@ class ServiceBookingController extends GetxController {
     }
   }
 
-  Future<ServiceBookingEntity?> cancelBookingWhenNoPartnerAvailable(
-    ServiceBookingEntity booking,
-  ) async {
-    _logMatchmakingRematchBooking('cancelNoPartner:start', booking);
+  Future<void> requestPartnerRematch(ServiceBookingEntity booking) async {
+    _logMatchmakingRematchBooking('manualRematch:requested', booking);
 
-    if (!booking.canCancelBeforePartnerFound) {
-      _handleCreateBookingFeedback(
-        'Mitra belum tersedia',
-        'Silakan coba lagi beberapa saat.',
-        showSnackbar: false,
-        isError: true,
+    if (!booking.canRequestPartnerRematch) {
+      AppSnackbar.info(
+        'Belum bisa mencari ulang',
+        'Sistem masih mencari atau menunggu konfirmasi mitra saat ini.',
       );
-      debugPrint(
-        '[matchmaking-rematch] cancelNoPartner:skip '
-        'bookingId=${booking.id} canCancel=false',
-      );
-      return null;
+      return;
     }
 
-    try {
-      final cancelled = await _cancelBookingUseCase(
-        booking.id,
-        reason: 'Tidak ada mitra tersedia untuk layanan ini.',
-      );
-      bookingDetail.value = cancelled;
-      latestBooking.value = cancelled;
-      stopBookingDetailPolling();
-      _refreshActivities();
-      _logMatchmakingRematchBooking(
-        'cancelNoPartner:success',
-        cancelled,
-      );
-      _handleCreateBookingFeedback(
+    final rematched = await rematchBookingSilently(
+      booking.id,
+      notes: 'Cari mitra pengganti lagi.',
+    );
+
+    if (rematched == null) {
+      AppSnackbar.info(
         'Mitra belum tersedia',
-        'Silakan coba lagi beberapa saat.',
-        showSnackbar: false,
-        isError: true,
+        'Kami belum menemukan mitra pengganti. Coba lagi beberapa saat.',
       );
-      return null;
-    } on AppException catch (error) {
-      debugPrint(
-        '[matchmaking-rematch] cancelNoPartner:appError '
-        'bookingId=${booking.id} message="${error.message}"',
-      );
-      _handleCreateBookingFeedback(
-        'Mitra belum tersedia',
-        'Silakan coba lagi beberapa saat.',
-        showSnackbar: false,
-        isError: true,
-      );
-      return null;
-    } catch (error) {
-      debugPrint(
-        '[matchmaking-rematch] cancelNoPartner:error '
-        'bookingId=${booking.id} error=$error',
-      );
-      _handleCreateBookingFeedback(
-        'Mitra belum tersedia',
-        'Silakan coba lagi beberapa saat.',
-        showSnackbar: false,
-        isError: true,
-      );
-      return null;
+      return;
     }
+
+    if (rematched.assignedPartnerUserId == null) {
+      AppSnackbar.info(
+        'Masih mencari mitra',
+        'Belum ada mitra pengganti yang tersedia saat ini.',
+      );
+      return;
+    }
+
+    AppSnackbar.success(
+      'Mitra pengganti ditemukan',
+      'Kami menunggu mitra menerima pesanan.',
+    );
   }
 
   Future<void> loadBookingDetail(int bookingId) async {
@@ -1418,8 +1361,7 @@ class ServiceBookingController extends GetxController {
       'isAccepted=${booking.isAcceptedByPartner} '
       'isWaitingAcceptance=${booking.isWaitingPartnerAcceptance} '
       'isSearchingReplacement=${booking.isSearchingReplacementPartner} '
-      'shouldRematch=${booking.shouldRequestPartnerRematch} '
-      'isNoPartnerAvailable=${booking.isNoPartnerAvailable} '
+      'canManualRematch=${booking.canRequestPartnerRematch} '
       'partnerName="${booking.partnerName}" '
       'serviceId=${booking.serviceId} '
       'serviceName="${booking.serviceName}" '

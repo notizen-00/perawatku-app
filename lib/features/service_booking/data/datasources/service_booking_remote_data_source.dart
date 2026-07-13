@@ -213,7 +213,7 @@ class ServiceBookingRemoteDataSourceImpl
       '${AppEndpoints.patientServiceBookings}/$bookingId/cancel',
       data: <String, dynamic>{
         if (trimmedReason != null && trimmedReason.isNotEmpty)
-          'reason': trimmedReason,
+          'notes': trimmedReason,
       },
     );
 
