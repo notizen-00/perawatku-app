@@ -52,7 +52,7 @@ class MidtransService {
     final sdk = _sdk;
     if (sdk == null) {
       throw StateError(
-        'Midtrans belum siap. Pastikan client key dan platform sudah benar.',
+        'Pembayaran online belum siap. Silakan coba beberapa saat lagi.',
       );
     }
 

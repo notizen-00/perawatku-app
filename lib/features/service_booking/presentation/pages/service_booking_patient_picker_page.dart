@@ -530,7 +530,7 @@ class _EmptyPatientState extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Tambahkan profil keluarga dulu untuk melanjutkan booking.',
+          'Tambahkan profil keluarga dulu untuk melanjutkan pesanan.',
           textAlign: TextAlign.center,
           style: TextStyle(color: AppColors.lightMutedText),
         ),

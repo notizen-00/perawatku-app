@@ -53,7 +53,7 @@ class ConsultationPaymentModel extends ConsultationPaymentEntity {
   static String _readRequiredString(dynamic value) {
     final result = _readString(value);
     if (result == null) {
-      throw const FormatException('Snap token tidak ditemukan pada response.');
+      throw const FormatException('Data pembayaran belum tersedia.');
     }
 
     return result;

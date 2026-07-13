@@ -120,7 +120,7 @@ class ActivityPage extends StatelessWidget {
           records: controller.consultationActivities,
           emptyTitle: 'Belum ada riwayat konsultasi',
           emptyDescription:
-              'Aktivitas chat dokter dan layanan konsultasi akan muncul di sini.',
+              'Aktivitas obrolan dokter dan layanan konsultasi akan muncul di sini.',
           icon: Icons.medical_information_rounded,
           isDark: isDark,
           formatDate: _formatDate,
@@ -128,9 +128,9 @@ class ActivityPage extends StatelessWidget {
         ),
         _ActivityListTab(
           records: controller.otherActivities,
-          emptyTitle: 'Belum ada booking layanan',
+          emptyTitle: 'Belum ada pesanan layanan',
           emptyDescription:
-              'Booking homecare dan layanan medis akan tampil di tab ini.',
+              'Pesanan layanan di rumah dan layanan medis akan tampil di tab ini.',
           icon: Icons.home_repair_service_rounded,
           isDark: isDark,
           formatDate: _formatDate,
@@ -261,7 +261,7 @@ class _ActivityHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Pantau riwayat konsultasi, booking layanan, dan aktivitas medis Anda dalam satu tempat.',
+                  'Pantau riwayat konsultasi, pesanan layanan, dan aktivitas medis Anda dalam satu tempat.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: const Color(0xFF204B48),
                     height: 1.35,
@@ -423,7 +423,7 @@ class _ActivityListTab extends StatelessWidget {
                               record.canOpenServiceBooking
                                   ? 'Lihat detail'
                                   : record.canOpenChat
-                                      ? 'Buka chat'
+                                      ? 'Buka obrolan'
                                       : 'Lihat konsultasi',
                               style: const TextStyle(
                                 fontSize: 12,

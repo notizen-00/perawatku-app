@@ -55,7 +55,7 @@ class DoctorChatPage extends GetView<DoctorChatController> {
         if (controller.errorMessage.value != null &&
             controller.consultation.value == null) {
           return _ChatStateMessage(
-            title: 'Chat belum siap',
+            title: 'Obrolan belum siap',
             description: controller.errorMessage.value!,
             actionLabel: 'Coba lagi',
             onTap: controller.initializeConsultation,
@@ -74,7 +74,7 @@ class DoctorChatPage extends GetView<DoctorChatController> {
           return _ChatStateMessage(
             title: 'Pembayaran belum selesai',
             description:
-                'Halaman chat akan terbuka penuh setelah konsultasi berhasil dibayar.',
+                'Halaman obrolan akan terbuka setelah konsultasi berhasil dibayar.',
             actionLabel: 'Buka pembayaran',
             onTap: () {
               Get.offNamed(
@@ -226,7 +226,7 @@ class _ReadOnlyNotice extends StatelessWidget {
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Konsultasi sudah berakhir. Chat ini hanya bisa dibaca.',
+                      'Konsultasi sudah berakhir. Obrolan ini hanya bisa dibaca.',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
             ),
           ),

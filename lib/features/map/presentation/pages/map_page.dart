@@ -29,7 +29,7 @@ class MapPage extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => controller.refresh(),
-            tooltip: 'Refresh',
+            tooltip: 'Muat ulang',
           ),
         ],
       ),
@@ -260,7 +260,7 @@ class MapPage extends StatelessWidget {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   Text(
-                    '${partner.partnerType.displayName} - update ${controller.lastPartnerUpdateLabel}',
+                    '${partner.partnerType.displayName} - diperbarui ${controller.lastPartnerUpdateLabel}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
@@ -270,7 +270,7 @@ class MapPage extends StatelessWidget {
             ),
             IconButton(
               icon: const Icon(Icons.close),
-              tooltip: 'Stop tracking',
+              tooltip: 'Berhenti melacak',
               onPressed: controller.stopNavigation,
             ),
           ],
@@ -292,7 +292,7 @@ class MapPage extends StatelessWidget {
             _buildMetric(
               context,
               icon: Icons.schedule,
-              label: 'ETA',
+              label: 'Perkiraan tiba',
               value: controller.etaLabel,
             ),
             _buildMetric(
@@ -304,7 +304,7 @@ class MapPage extends StatelessWidget {
             _buildMetric(
               context,
               icon: Icons.trending_up,
-              label: 'Progress',
+              label: 'Perjalanan',
               value: '$progressPercent%',
             ),
           ],
@@ -327,7 +327,7 @@ class MapPage extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: () => controller.refreshNavigationRoute(),
                 icon: const Icon(Icons.refresh),
-                label: const Text('Update'),
+                label: const Text('Perbarui'),
               ),
             ),
           ],

@@ -30,7 +30,7 @@ class HomeNearbyNursesSection extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'List Perawat terdekat',
+                'Perawat terdekat',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
                     ),
@@ -38,7 +38,7 @@ class HomeNearbyNursesSection extends StatelessWidget {
             ),
             TextButton(
               onPressed: controller.fetchNearbyNurses,
-              child: const Text('Refresh'),
+              child: const Text('Muat ulang'),
             ),
           ],
         ),

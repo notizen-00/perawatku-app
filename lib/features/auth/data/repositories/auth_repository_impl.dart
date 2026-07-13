@@ -31,4 +31,44 @@ class AuthRepositoryImpl implements AuthRepository {
 
     return result;
   }
+
+  @override
+  Future<LoginResultEntity> register({
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+    required String passwordConfirmation,
+    String? dateOfBirth,
+    String? gender,
+    String? address,
+    String? bloodType,
+    String? emergencyContactName,
+    String? emergencyContactPhone,
+    String? allergies,
+    String? medicalNotes,
+  }) async {
+    final result = await _remoteDataSource.register(
+      name: name,
+      email: email,
+      phone: phone,
+      password: password,
+      passwordConfirmation: passwordConfirmation,
+      dateOfBirth: dateOfBirth,
+      gender: gender,
+      address: address,
+      bloodType: bloodType,
+      emergencyContactName: emergencyContactName,
+      emergencyContactPhone: emergencyContactPhone,
+      allergies: allergies,
+      medicalNotes: medicalNotes,
+    );
+
+    await _storageService.saveSession(
+      token: result.token,
+      userJson: (result.user as AuthUserModel).toJson(),
+    );
+
+    return result;
+  }
 }

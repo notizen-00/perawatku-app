@@ -18,7 +18,7 @@ class _HomeHeroPromoState extends State<HomeHeroPromo> {
   static const List<_HeroPromoData> _promos = [
     _HeroPromoData(
       badge: 'SEHAT HEMAT',
-      title: 'Home care',
+      title: 'Layanan di rumah',
       subtitle: 'Perawat datang ke rumah untuk bantu pemulihan keluarga.',
       icon: Icons.groups_rounded,
       gradient: [Color(0xFFBA1F28), Color(0xFFD63A44)],
@@ -27,7 +27,7 @@ class _HomeHeroPromoState extends State<HomeHeroPromo> {
     _HeroPromoData(
       badge: 'CHAT DOKTER',
       title: 'Konsultasi cepat',
-      subtitle: 'Tulis gejala, bayar, lalu lanjut chat dengan dokter.',
+      subtitle: 'Tulis gejala, bayar, lalu lanjut obrolan dengan dokter.',
       icon: Icons.chat_bubble_rounded,
       gradient: [Color(0xFF047D78), Color(0xFF12B8A8)],
       accent: Color(0xFFFFD166),

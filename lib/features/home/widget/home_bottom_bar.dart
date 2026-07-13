@@ -65,7 +65,7 @@ class HomeBottomBar extends StatelessWidget {
                       const SizedBox(width: 78),
                       _BottomItem(
                         icon: Icons.chat_bubble_outline_rounded,
-                        label: 'Chat',
+                        label: 'Obrolan',
                         badge: '1',
                         selected: controller.selectedBottomNavIndex.value == 3,
                         onTap: () => controller.selectBottomNav(3),

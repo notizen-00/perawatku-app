@@ -36,7 +36,7 @@ class HomeRebookingSection extends StatelessWidget {
             children: [
               _BookingCard(
                 title: 'Konsultasi Dokter',
-                subtitle: 'Booking cepat untuk keluhan harian Anda.',
+                subtitle: 'Pesan cepat untuk keluhan harian Anda.',
                 actionLabel: 'Buka Layanan',
                 accent: AppColors.primary,
                 icon: Icons.medical_services_rounded,

@@ -349,7 +349,7 @@ class _DoctorCard extends StatelessWidget {
                         ),
                       ),
                       child: const Text(
-                        'Chat',
+                        'Obrolan',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),

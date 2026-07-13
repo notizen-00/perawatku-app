@@ -2,6 +2,9 @@ import 'package:get/get.dart';
 
 import '../../features/auth/presentation/bindings/auth_binding.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/auth/presentation/pages/onboarding_page.dart';
+import '../../features/auth/presentation/pages/profile_completion_page.dart';
+import '../../features/auth/presentation/pages/register_page.dart';
 import '../../features/doctor/presentation/bindings/doctor_chat_binding.dart';
 import '../../features/doctor/presentation/bindings/doctor_binding.dart';
 import '../../features/doctor/presentation/pages/doctor_consultation_page.dart';
@@ -27,8 +30,22 @@ class AppPages {
 
   static final routes = <GetPage>[
     GetPage(
+      name: AppRoutes.onboarding,
+      page: () => const OnboardingPage(),
+    ),
+    GetPage(
       name: AppRoutes.login,
       page: () => const LoginPage(),
+      binding: AuthBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.register,
+      page: () => const RegisterPage(),
+      binding: AuthBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.profileCompletion,
+      page: () => const ProfileCompletionPage(),
       binding: AuthBinding(),
     ),
     GetPage(name: AppRoutes.home, page: () => MedicHomePage()),

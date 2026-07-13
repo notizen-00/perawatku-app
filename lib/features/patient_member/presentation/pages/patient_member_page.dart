@@ -361,7 +361,7 @@ class _MemberForm extends StatelessWidget {
               const SizedBox(height: 16),
               const _SectionTitle(
                 title: 'Data utama',
-                subtitle: 'Nama wajib diisi. Field lain boleh dikosongkan.',
+                subtitle: 'Nama wajib diisi. Data lain boleh dikosongkan.',
               ),
               _Field(
                 controller: controller.nameController,
@@ -425,7 +425,7 @@ class _MemberForm extends StatelessWidget {
               const _SectionTitle(
                 title: 'Alamat layanan',
                 subtitle:
-                    'Alamat dan titik peta opsional, tapi berguna untuk layanan homecare.',
+                    'Alamat lengkap dan titik peta wajib diisi agar mitra datang ke lokasi yang tepat.',
               ),
               const SizedBox(height: 10),
               _Field(
@@ -437,33 +437,10 @@ class _MemberForm extends StatelessWidget {
               _Field(
                 controller: controller.addressController,
                 label: 'Alamat lengkap',
-                optional: true,
+                required: true,
                 maxLines: 3,
               ),
-              _Field(
-                controller: controller.provinceController,
-                label: 'Provinsi',
-                optional: true,
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: _Field(
-                      controller: controller.cityController,
-                      label: 'Kota',
-                      optional: true,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _Field(
-                      controller: controller.districtController,
-                      label: 'Kecamatan',
-                      optional: true,
-                    ),
-                  ),
-                ],
-              ),
+              _AreaPickerSection(controller: controller),
               _Field(
                 controller: controller.postalCodeController,
                 label: 'Kode pos',
@@ -475,7 +452,7 @@ class _MemberForm extends StatelessWidget {
                 tilePadding: EdgeInsets.zero,
                 childrenPadding: EdgeInsets.zero,
                 title: const Text(
-                  'Field opsional lainnya',
+                  'Data opsional lainnya',
                   style: TextStyle(fontWeight: FontWeight.w900),
                 ),
                 subtitle: const Text(
@@ -720,6 +697,122 @@ class _DropdownField extends StatelessWidget {
   }
 }
 
+class _AreaPickerSection extends StatelessWidget {
+  const _AreaPickerSection({required this.controller});
+
+  final PatientMemberController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => Column(
+        children: [
+          _AreaDropdownField(
+            label: 'Provinsi',
+            value: controller.selectedProvince.value,
+            items: controller.provinces,
+            isLoading: controller.isLoadingProvinces.value,
+            onRefresh: controller.loadProvinces,
+            onChanged: controller.selectProvince,
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _AreaDropdownField(
+                  label: 'Kota/Kabupaten',
+                  value: controller.selectedRegency.value,
+                  items: controller.regencies,
+                  isLoading: controller.isLoadingRegencies.value,
+                  enabled: controller.selectedProvince.value != null,
+                  emptyHint: 'Pilih provinsi dulu',
+                  onChanged: controller.selectRegency,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _AreaDropdownField(
+                  label: 'Kecamatan',
+                  value: controller.selectedDistrict.value,
+                  items: controller.districts,
+                  isLoading: controller.isLoadingDistricts.value,
+                  enabled: controller.selectedRegency.value != null,
+                  emptyHint: 'Pilih kota dulu',
+                  onChanged: controller.selectDistrict,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AreaDropdownField extends StatelessWidget {
+  const _AreaDropdownField({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.isLoading = false,
+    this.enabled = true,
+    this.emptyHint,
+    this.onRefresh,
+  });
+
+  final String label;
+  final IndonesiaAreaOption? value;
+  final List<IndonesiaAreaOption> items;
+  final ValueChanged<IndonesiaAreaOption?> onChanged;
+  final bool isLoading;
+  final bool enabled;
+  final String? emptyHint;
+  final VoidCallback? onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = items.contains(value) ? value : null;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<IndonesiaAreaOption>(
+        value: selected,
+        isExpanded: true,
+        decoration: _inputDecoration(
+          label: label,
+          required: true,
+          hint: emptyHint,
+        ).copyWith(
+          suffixIcon: isLoading
+              ? const Padding(
+                  padding: EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : onRefresh == null
+              ? null
+              : IconButton(
+                  onPressed: onRefresh,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+        ),
+        items: items
+            .map(
+              (item) => DropdownMenuItem<IndonesiaAreaOption>(
+                value: item,
+                child: Text(item.name, overflow: TextOverflow.ellipsis),
+              ),
+            )
+            .toList(),
+        onChanged: enabled && !isLoading ? onChanged : null,
+      ),
+    );
+  }
+}
+
 class _MapCoordinateField extends StatelessWidget {
   const _MapCoordinateField({required this.controller});
 
@@ -754,7 +847,7 @@ class _MapCoordinateField extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Titik peta (opsional)',
+                          'Titik peta *',
                           style: TextStyle(fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(height: 2),

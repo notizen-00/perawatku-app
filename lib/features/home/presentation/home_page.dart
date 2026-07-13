@@ -46,7 +46,7 @@ class MedicHomePage extends StatelessWidget {
     ActivityPage(),
     const ServiceMatchmakingPage(),
     const HomePlaceholderPage(
-      title: 'Chat',
+      title: 'Obrolan',
       icon: Icons.chat_bubble_outline_rounded,
       description:
           'Percakapan dengan admin atau tenaga kesehatan akan muncul di sini.',

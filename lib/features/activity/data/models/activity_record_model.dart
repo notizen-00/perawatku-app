@@ -91,7 +91,7 @@ class ActivityRecordModel extends ActivityRecordEntity {
         : <String, dynamic>{};
     final code =
         _readString(json['order_code'] ?? json['code'] ?? json['reference']) ??
-        'Order #${json['id'] ?? '-'}';
+        'Pesanan #${json['id'] ?? '-'}';
     final apotikName =
         _readString(
           apotik['name'] ?? json['apotik_name'] ?? json['pharmacy_name'],
@@ -135,7 +135,7 @@ class ActivityRecordModel extends ActivityRecordEntity {
         _readString(
           json['booking_code'] ?? json['code'] ?? json['reference'],
         ) ??
-        'Booking #${json['id'] ?? '-'}';
+        'Pesanan #${json['id'] ?? '-'}';
     final serviceName =
         _readString(service['name'] ?? json['service_name']) ?? 'Layanan medis';
     final partnerName =

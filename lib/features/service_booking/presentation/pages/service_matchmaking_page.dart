@@ -52,12 +52,12 @@ class ServiceMatchmakingPage extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
         children: const [
           Text(
-            'Matchmaking Layanan',
+            'Pesan Layanan',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
           ),
           SizedBox(height: 6),
           Text(
-            'Pilih layanan, profil pasien, jadwal, lalu lanjutkan pembayaran agar backend mencarikan mitra.',
+            'Pilih layanan, profil pasien, dan jadwal. Kami akan mencarikan mitra yang sesuai.',
           ),
           SizedBox(height: 16),
           ServiceBookingPanel(),

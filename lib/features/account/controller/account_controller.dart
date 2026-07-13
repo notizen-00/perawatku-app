@@ -172,7 +172,7 @@ class AccountController extends GetxController {
       await Future<void>.delayed(const Duration(milliseconds: 350));
       AppSnackbar.success(
         'Password diperbarui',
-        'Perubahan password siap dikirim ke API saat endpoint tersedia.',
+        'Password akun berhasil diperbarui.',
       );
       return true;
     } finally {

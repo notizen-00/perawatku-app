@@ -134,7 +134,7 @@ class _LoadingStatusText extends StatelessWidget {
     required bool isRematching,
   }) {
     if (isRematching) {
-      return 'Mitra sebelumnya belum menerima. Kami sedang meminta backend mencarikan kandidat pengganti.';
+      return 'Mitra sebelumnya belum menerima. Kami sedang mencarikan mitra pengganti.';
     }
     if (booking == null) {
       return fallbackSubtitle;

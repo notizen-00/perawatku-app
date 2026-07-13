@@ -43,7 +43,11 @@ class NotificationController extends GetxController {
       label: 'Belum dibaca',
       iconName: 'unread',
     ),
-    NotificationCategoryOption(key: 'chat', label: 'Chat', iconName: 'chat'),
+    NotificationCategoryOption(
+      key: 'chat',
+      label: 'Obrolan',
+      iconName: 'chat',
+    ),
     NotificationCategoryOption(
       key: 'system',
       label: 'Sistem',

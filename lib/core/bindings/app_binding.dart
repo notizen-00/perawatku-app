@@ -10,6 +10,7 @@ import '../../features/auth/data/datasources/auth_remote_data_source.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/usecases/login_use_case.dart';
+import '../../features/auth/domain/usecases/register_use_case.dart';
 import '../../features/consultation/data/datasources/consultation_remote_data_source.dart';
 import '../../features/consultation/data/repositories/consultation_repository_impl.dart';
 import '../../features/consultation/domain/repositories/consultation_repository.dart';
@@ -335,6 +336,11 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<LoginUseCase>(
       () => LoginUseCase(Get.find<AuthRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<RegisterUseCase>(
+      () => RegisterUseCase(Get.find<AuthRepository>()),
       fenix: true,
     );
   }

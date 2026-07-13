@@ -46,7 +46,7 @@ class _ServiceBookingCheckoutPageState
         foregroundColor: isDark ? AppColors.darkText : AppColors.lightText,
         title: Obx(
           () => Text(
-            controller.selectedService.value?.name ?? 'Checkout Layanan',
+            controller.selectedService.value?.name ?? 'Pesan Layanan',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w900),
@@ -113,7 +113,7 @@ class _TransportInfoCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  'Biaya transport mengikuti backend-service-fee. Untuk jadwal recurring visit, biaya dapat muncul jika jarak mitra melebihi ambang admin. Ringkasan final tampil setelah checkout.',
+                  'Biaya transport akan dihitung otomatis berdasarkan jarak mitra ke alamat pasien. Ringkasan biaya akhir tampil setelah pesanan diproses.',
                   style: TextStyle(
                     color: isDark
                         ? AppColors.darkMutedText
@@ -212,7 +212,7 @@ class _CheckoutBottomBar extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'Proses Checkout',
+                              'Proses Pesanan',
                               style: TextStyle(fontWeight: FontWeight.w900),
                             ),
                             SizedBox(width: 8),
@@ -269,7 +269,7 @@ class _CheckoutBottomBar extends StatelessWidget {
 
     AppSnackbar.success(
       'Mitra menerima pesanan',
-      'Detail booking sedang dibuka.',
+      'Detail pesanan sedang dibuka.',
     );
     await Get.offNamed(
       AppRoutes.serviceBookingDetail,

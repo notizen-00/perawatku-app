@@ -136,7 +136,7 @@ class AccountPage extends StatelessWidget {
                             ),
                             _QuickActionData(
                               icon: Icons.lock_reset_rounded,
-                              title: 'Password',
+                              title: 'Kata sandi',
                               subtitle: 'Ubah sandi akun',
                               color: AppColors.info,
                               onTap: () => _openPasswordForm(context),
@@ -178,7 +178,7 @@ class AccountPage extends StatelessWidget {
                               title: 'Profil keluarga',
                               subtitle:
                                   'Kelola profil suami, istri, anak, kakek, nenek, dan pasien lain',
-                              badge: 'CRUD',
+                              badge: 'Kelola',
                               badgeColor: AppColors.primary,
                               onTap: () =>
                                   Get.toNamed(AppRoutes.patientMembers),
@@ -1160,14 +1160,14 @@ class _PasswordFormSheet extends StatelessWidget {
           const _SheetHandle(),
           const SizedBox(height: 18),
           const _SheetTitle(
-            title: 'Ubah Password',
+            title: 'Ubah Kata Sandi',
             subtitle: 'Gunakan minimal 8 karakter agar akun tetap aman.',
           ),
           const SizedBox(height: 16),
           Obx(
             () => _PasswordField(
               controller: controller.currentPasswordController,
-              label: 'Password saat ini',
+              label: 'Kata sandi saat ini',
               obscureText: controller.obscureCurrentPassword.value,
               onToggle: () => controller.obscureCurrentPassword.toggle(),
             ),
@@ -1175,7 +1175,7 @@ class _PasswordFormSheet extends StatelessWidget {
           Obx(
             () => _PasswordField(
               controller: controller.newPasswordController,
-              label: 'Password baru',
+              label: 'Kata sandi baru',
               obscureText: controller.obscureNewPassword.value,
               onToggle: () => controller.obscureNewPassword.toggle(),
             ),
@@ -1183,7 +1183,7 @@ class _PasswordFormSheet extends StatelessWidget {
           Obx(
             () => _PasswordField(
               controller: controller.confirmPasswordController,
-              label: 'Konfirmasi password baru',
+              label: 'Konfirmasi kata sandi baru',
               obscureText: controller.obscureConfirmPassword.value,
               onToggle: () => controller.obscureConfirmPassword.toggle(),
             ),
@@ -1209,7 +1209,7 @@ class _PasswordFormSheet extends StatelessWidget {
               label: Text(
                 controller.isChangingPassword.value
                     ? 'Memproses...'
-                    : 'Ubah password',
+                    : 'Ubah kata sandi',
               ),
             ),
           ),

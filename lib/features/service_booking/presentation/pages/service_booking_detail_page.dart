@@ -125,7 +125,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
         }
 
         if (booking == null) {
-          return const Center(child: Text('Detail booking belum tersedia.'));
+          return const Center(child: Text('Detail pesanan belum tersedia.'));
         }
 
         return RefreshIndicator(
@@ -358,7 +358,7 @@ class _ServiceBookingOrderDetailPageState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detail Order'),
+        title: const Text('Detail Pesanan'),
         actions: [
           Obx(
             () => IconButton(
@@ -398,24 +398,24 @@ class _ServiceBookingOrderDetailPageState
         }
 
         if (booking == null) {
-          return const Center(child: Text('Detail order belum tersedia.'));
+          return const Center(child: Text('Detail pesanan belum tersedia.'));
         }
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             _DetailSection(
-              title: 'Detail Order',
+              title: 'Detail Pesanan',
               icon: Icons.medical_services_rounded,
               rows: [
-                _DetailRow(label: 'Kode booking', value: booking.bookingCode),
-                _DetailRow(label: 'ID booking', value: booking.id.toString()),
+                _DetailRow(label: 'Kode pesanan', value: booking.bookingCode),
+                _DetailRow(label: 'Nomor pesanan', value: booking.id.toString()),
                 _DetailRow(
                   label: 'Nama layanan',
                   value: booking.serviceName ?? arguments.serviceName ?? '-',
                 ),
                 _DetailRow(
-                  label: 'ID layanan',
+                  label: 'Nomor layanan',
                   value: booking.serviceId?.toString() ?? '-',
                 ),
                 _DetailRow(label: 'Status', value: booking.status),
@@ -450,7 +450,7 @@ class _ServiceBookingOrderDetailPageState
                       booking.patientMemberName ?? arguments.patientName ?? '-',
                 ),
                 _DetailRow(
-                  label: 'ID pasien member',
+                  label: 'Nomor pasien',
                   value: booking.patientMemberId?.toString() ?? '-',
                 ),
                 _DetailRow(
@@ -478,7 +478,7 @@ class _ServiceBookingOrderDetailPageState
                   ),
                 ),
                 _DetailRow(
-                  label: 'ID mitra',
+                  label: 'Nomor mitra',
                   value: booking.assignedPartnerUserId?.toString() ?? '-',
                 ),
                 _DetailRow(
@@ -549,20 +549,11 @@ class _ServiceBookingOrderDetailPageState
                   label: 'Status bayar',
                   value: booking.paymentStatus ?? 'pending',
                 ),
-                _DetailRow(
-                  label: 'Referensi',
-                  value: booking.paymentReference ?? '-',
-                ),
-                _DetailRow(
-                  label: 'Snap token',
-                  value: booking.snapToken == null ? '-' : 'Tersedia',
-                ),
-                _DetailRow(
-                  label: 'Payout mitra',
-                  value: booking.partnerBalanceTransactionId == null
-                      ? '-'
-                      : '#${booking.partnerBalanceTransactionId}',
-                ),
+                if ((booking.paymentReference ?? '').trim().isNotEmpty)
+                  _DetailRow(
+                    label: 'Kode pembayaran',
+                    value: booking.paymentReference ?? '-',
+                  ),
               ],
               isDark: isDark,
             ),
@@ -571,7 +562,6 @@ class _ServiceBookingOrderDetailPageState
               _FeeMessageSection(booking: booking, isDark: isDark),
               const SizedBox(height: 12),
             ],
-            _MatchmakingSection(booking: booking, isDark: isDark),
           ],
         );
       }),
@@ -618,7 +608,7 @@ class _ServiceBookingOrderDetailPageState
       parts.add(recurrence == 'monthly' ? 'bulanan' : 'mingguan');
     }
     if (visitCount != null) {
-      parts.add('$visitCount visit');
+      parts.add('$visitCount kunjungan');
     }
     return parts.join(' - ');
   }
@@ -733,7 +723,7 @@ class _PremiumBookingExperience extends StatelessWidget {
                     ),
                     Obx(
                       () => _StatusPill(
-                        label: isLivePolling.value ? 'Live' : booking.status,
+                        label: isLivePolling.value ? 'Aktif' : booking.status,
                         color: isLivePolling.value
                             ? AppColors.success
                             : AppColors.info,
@@ -773,7 +763,7 @@ class _PremiumBookingExperience extends StatelessWidget {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.refresh_rounded),
-                      label: const Text('Update rute'),
+                      label: const Text('Perbarui rute'),
                     ),
                   ),
                 ],
@@ -825,7 +815,7 @@ class _PremiumBookingExperience extends StatelessWidget {
       return 'Pesanan Dibatalkan';
     }
     if (booking.isOnTheWay) {
-      return 'Live Tracking';
+      return 'Pelacakan aktif';
     }
     if (status == 'confirmed' || status == 'scheduled') {
       return 'Mitra Disiapkan';
@@ -948,13 +938,13 @@ class _PricingBreakdownCard extends StatelessWidget {
   static String _feeNote(ServiceBookingEntity booking) {
     final notes = <String>[];
     if (booking.visitCount != null) {
-      notes.add('${booking.visitCount} visit');
+      notes.add('${booking.visitCount} kunjungan');
     }
     if (booking.distanceKm != null) {
       notes.add('jarak ${booking.distanceKm!.toStringAsFixed(1)} km');
     }
     if (booking.careMode == 'live_in') {
-      notes.add('live-in');
+      notes.add('menginap');
     }
     return notes.join(' - ');
   }
@@ -1445,7 +1435,7 @@ class _StatusHeroConfig {
     if (status == 'confirmed' || status == 'scheduled') {
       return const _StatusHeroConfig(
         title: 'Mitra Disiapkan',
-        subtitle: 'Live map aktif saat mitra mulai menuju lokasi.',
+        subtitle: 'Peta aktif saat mitra mulai menuju lokasi.',
         icon: Icons.medical_services_rounded,
         accentColor: AppColors.primary,
         backgroundColor: Color(0xFFEFF8F5),
@@ -1455,7 +1445,7 @@ class _StatusHeroConfig {
 
     return const _StatusHeroConfig(
       title: 'Menunggu Mitra',
-      subtitle: 'Kami sedang memantau status pesanan secara live.',
+      subtitle: 'Kami sedang memantau status pesanan secara berkala.',
       icon: Icons.hourglass_top_rounded,
       accentColor: AppColors.warning,
       backgroundColor: Color(0xFFFFF8EA),
@@ -1497,31 +1487,31 @@ class _PremiumTimeline extends StatelessWidget {
     final status = booking.status.toLowerCase().trim();
     final steps = [
       _TimelineData(
-        title: 'Booking Pending',
-        subtitle: 'Request received',
+        title: 'Pesanan Diterima',
+        subtitle: 'Permintaan layanan sudah masuk',
         time: booking.scheduledAt,
         completed: _statusRank(status) >= 0,
       ),
       _TimelineData(
-        title: 'Booking Confirmed',
+        title: 'Mitra Menerima',
         subtitle: booking.partnerName == null
-            ? 'Waiting for partner acceptance'
-            : '${booking.partnerName} accepted',
+            ? 'Menunggu konfirmasi mitra'
+            : '${booking.partnerName} menerima pesanan',
         time: booking.acceptedAt,
         completed: _statusRank(status) >= 1,
       ),
       _TimelineData(
-        title: 'On The Way',
-        subtitle: 'Traveling to your location',
+        title: 'Dalam Perjalanan',
+        subtitle: 'Mitra menuju lokasi Anda',
         time: booking.startedAt,
         completed: _statusRank(status) >= 2,
         active: status == 'on_the_way',
       ),
       _TimelineData(
-        title: 'Arrived',
+        title: 'Selesai',
         subtitle: booking.completedAt == null
-            ? 'Expected after partner arrives'
-            : 'Service completed',
+            ? 'Menunggu layanan selesai'
+            : 'Layanan sudah selesai',
         time: booking.completedAt,
         completed: _statusRank(status) >= 3,
         active: booking.needsPatientCompletionConfirmation,
@@ -1650,7 +1640,7 @@ class _TimelineItem extends StatelessWidget {
                         ),
                         const _SoftInfoPill(
                           icon: Icons.traffic_rounded,
-                          label: 'Light traffic',
+                          label: 'Lalu lintas lancar',
                         ),
                       ],
                     ),
@@ -1680,12 +1670,12 @@ class _TimelineItem extends StatelessWidget {
 
   static String _formatDistance(double meters) {
     if (meters <= 0) {
-      return 'Calculating';
+      return 'Menghitung';
     }
     if (meters < 1000) {
-      return '${meters.toStringAsFixed(0)} m away';
+      return '${meters.toStringAsFixed(0)} m lagi';
     }
-    return '${(meters / 1000).toStringAsFixed(1)} km away';
+    return '${(meters / 1000).toStringAsFixed(1)} km lagi';
   }
 }
 
@@ -1835,7 +1825,7 @@ class _PremiumPartnerCard extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: null,
                   icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  label: const Text('Chat'),
+                  label: const Text('Obrolan'),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1843,7 +1833,7 @@ class _PremiumPartnerCard extends StatelessWidget {
                 child: OutlinedButton.icon(
                   onPressed: null,
                   icon: const Icon(Icons.call_rounded),
-                  label: const Text('Call'),
+                  label: const Text('Telepon'),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1913,56 +1903,6 @@ class _MapPin extends StatelessWidget {
         ],
       ),
       child: Icon(icon, color: color, size: 24),
-    );
-  }
-}
-
-class _MatchmakingSection extends StatelessWidget {
-  const _MatchmakingSection({required this.booking, required this.isDark});
-
-  final ServiceBookingEntity booking;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final matchmaking = booking.matchmaking;
-
-    return _DetailSection(
-      title: 'Matchmaking',
-      icon: Icons.route_rounded,
-      rows: [
-        _DetailRow(
-          label: 'Mitra matched',
-          value: matchmaking?.partnerUserId == null
-              ? '-'
-              : '#${matchmaking!.partnerUserId}',
-        ),
-        _DetailRow(
-          label: 'Partner service',
-          value: matchmaking?.partnerServiceId == null
-              ? '-'
-              : '#${matchmaking!.partnerServiceId}',
-        ),
-        _DetailRow(
-          label: 'Jarak',
-          value: matchmaking?.distanceKm == null
-              ? '-'
-              : '${matchmaking!.distanceKm!.toStringAsFixed(1)} km',
-        ),
-        _DetailRow(
-          label: 'Skor match',
-          value: matchmaking?.matchScore == null
-              ? '-'
-              : matchmaking!.matchScore!.toStringAsFixed(1),
-        ),
-        _DetailRow(
-          label: 'Skor kualitas',
-          value: matchmaking?.qualityScore == null
-              ? '-'
-              : matchmaking!.qualityScore!.toStringAsFixed(1),
-        ),
-      ],
-      isDark: isDark,
     );
   }
 }

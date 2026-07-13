@@ -72,7 +72,7 @@ class DoctorConsultationPage extends GetView<DoctorChatController> {
                       ),
                 label: Text(
                   consultation?.isPaid == true
-                      ? 'Buka chat konsultasi'
+                      ? 'Buka obrolan konsultasi'
                       : consultation == null
                       ? 'Buat dan bayar konsultasi'
                       : controller.isPaymentPending
@@ -99,7 +99,7 @@ class DoctorConsultationPage extends GetView<DoctorChatController> {
                     ? null
                     : controller.openChatPage,
                 icon: const Icon(Icons.forum_rounded),
-                label: const Text('Lanjut ke chat'),
+                label: const Text('Lanjut ke obrolan'),
               );
             }
 
@@ -121,7 +121,7 @@ class DoctorConsultationPage extends GetView<DoctorChatController> {
                 !isReady
                     ? 'Menyiapkan konsultasi...'
                     : controller.isPaying.value
-                    ? 'Membuka Midtrans...'
+                    ? 'Membuka pembayaran...'
                     : consultation == null
                     ? 'Buat dan bayar konsultasi'
                     : controller.isPaymentPending
@@ -255,10 +255,10 @@ class _ConsultationStatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPaid = consultation?.isPaid ?? false;
     final statusLabel = isPaid
-        ? 'Pembayaran berhasil dan chat siap dipakai'
+        ? 'Pembayaran berhasil dan obrolan siap digunakan'
         : consultation == null
         ? 'Isi catatan gejala lalu lanjutkan ke pembayaran'
-        : 'Menunggu pembayaran Midtrans';
+        : 'Menunggu pembayaran';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -278,7 +278,7 @@ class _ConsultationStatusCard extends StatelessWidget {
           if (!controller.isMidtransReady) ...[
             const SizedBox(height: 8),
             Text(
-              'Isi MIDTRANS_CLIENT_KEY dan MIDTRANS_MERCHANT_BASE_URL saat build/run agar pembayaran aktif di Android atau iOS.',
+              'Pembayaran online belum tersedia saat ini.',
               style: TextStyle(fontSize: 12, color: AppColors.lightMutedText),
             ),
           ],

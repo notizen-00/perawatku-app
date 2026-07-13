@@ -93,8 +93,8 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
                       : const Icon(Icons.payments_rounded),
                   label: Text(
                     controller.isCreatingBooking.value
-                        ? 'Membuat booking...'
-                        : 'Buat booking & lanjut bayar',
+                        ? 'Membuat pesanan...'
+                        : 'Pesan layanan & lanjut bayar',
                   ),
                 ),
               ),
@@ -111,7 +111,7 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
             if (!controller.isMidtransReady) ...[
               const SizedBox(height: 10),
               Text(
-                'Pembayaran Midtrans aktif di Android/iOS jika client key dan merchant base URL sudah diisi.',
+                'Pembayaran online tersedia di aplikasi Android dan iOS.',
                 style: TextStyle(
                   color: isDark
                       ? AppColors.darkMutedText
@@ -163,7 +163,7 @@ class ServiceBookingPanel extends GetView<ServiceBookingController> {
 
     AppSnackbar.success(
       'Mitra menerima pesanan',
-      'Detail booking sedang dibuka.',
+      'Detail pesanan sedang dibuka.',
     );
     await Get.toNamed(
       AppRoutes.serviceBookingDetail,
@@ -255,10 +255,10 @@ class _MatchmakingStatusCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   hasPartner
-                      ? 'Mitra sudah ditetapkan untuk booking ini.'
+                      ? 'Mitra sudah ditetapkan untuk pesanan ini.'
                       : isPaid
-                      ? 'Backend sedang mencari mitra yang sesuai untuk layanan ini.'
-                      : 'Matchmaking akan berjalan setelah pembayaran berhasil.',
+                      ? 'Kami sedang mencari mitra yang sesuai untuk layanan ini.'
+                      : 'Pencarian mitra dimulai setelah pembayaran berhasil.',
                   style: TextStyle(
                     color: isDark
                         ? AppColors.darkMutedText
@@ -321,12 +321,12 @@ class _BookingPanelHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Booking homecare',
+                'Pesanan layanan di rumah',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
               ),
               SizedBox(height: 2),
               Text(
-                'Matchmaking berjalan setelah booking dibuat.',
+                'Kami akan mencarikan mitra setelah pesanan dibuat.',
                 style: TextStyle(fontSize: 12),
               ),
             ],
@@ -364,7 +364,7 @@ class _ServicePickerSection extends StatelessWidget {
           }
 
           return InlineError(
-            message: 'Katalog layanan belum tersedia dari backend.',
+            message: 'Daftar layanan belum tersedia saat ini.',
             onRetry: () {
               controller.loadServiceCategories();
             },
@@ -769,7 +769,7 @@ class _ScheduleForm extends StatelessWidget {
               items: const [
                 DropdownMenuItem(
                   value: ServiceScheduleOption.once,
-                  child: Text('Sekali visit'),
+                  child: Text('Sekali kunjungan'),
                 ),
                 DropdownMenuItem(
                   value: ServiceScheduleOption.weekly,
@@ -821,13 +821,13 @@ class _ScheduleForm extends StatelessWidget {
                   items: [
                     const DropdownMenuItem(
                       value: ServiceCareMode.visit,
-                      child: Text('Visit'),
+                      child: Text('Kunjungan'),
                     ),
                     if (supportsRecurring)
                       DropdownMenuItem(
                         value: ServiceCareMode.liveIn,
                         enabled: isRecurring,
-                        child: const Text('Live-in'),
+                        child: const Text('Menginap'),
                       ),
                   ],
                   onChanged: (value) {

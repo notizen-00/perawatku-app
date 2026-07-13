@@ -7,12 +7,16 @@ class StorageService {
 
   static const _tokenKey = 'auth_token';
   static const _userKey = 'auth_user';
+  static const _hasSeenOnboardingKey = 'has_seen_onboarding';
 
   final SharedPreferences _preferences;
 
   String? get token => _preferences.getString(_tokenKey);
 
   bool get hasToken => token != null && token!.isNotEmpty;
+
+  bool get hasSeenOnboarding =>
+      _preferences.getBool(_hasSeenOnboardingKey) ?? false;
 
   Map<String, dynamic>? get userJson {
     final raw = _preferences.getString(_userKey);
@@ -38,6 +42,16 @@ class StorageService {
 
   String get userPhone => userJson?['phone']?.toString() ?? '';
 
+  bool get hasPatientAddress {
+    final patientProfile = userJson?['patient_profile'];
+    if (patientProfile is! Map<String, dynamic>) {
+      return false;
+    }
+
+    final address = patientProfile['address']?.toString().trim() ?? '';
+    return address.isNotEmpty;
+  }
+
   Future<void> saveSession({
     required String token,
     required Map<String, dynamic> userJson,
@@ -53,5 +67,9 @@ class StorageService {
   Future<void> clearSession() async {
     await _preferences.remove(_tokenKey);
     await _preferences.remove(_userKey);
+  }
+
+  Future<void> markOnboardingSeen() async {
+    await _preferences.setBool(_hasSeenOnboardingKey, true);
   }
 }

@@ -1,7 +1,10 @@
 class AppRoutes {
   AppRoutes._();
 
+  static const String onboarding = '/onboarding';
   static const String login = '/login';
+  static const String register = '/register';
+  static const String profileCompletion = '/profile-completion';
   static const String home = '/home';
   static const String search = '/search';
   static const String notifications = '/notifications';

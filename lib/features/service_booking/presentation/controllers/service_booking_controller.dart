@@ -728,7 +728,7 @@ class ServiceBookingController extends GetxController {
     if (service == null) {
       _handleCreateBookingFeedback(
         'Pilih layanan',
-        'Pilih layanan homecare dari katalog backend terlebih dahulu.',
+        'Pilih layanan kesehatan terlebih dahulu.',
         showSnackbar: showFailureSnackbar,
       );
       return null;
@@ -737,7 +737,7 @@ class ServiceBookingController extends GetxController {
     if (service.bookingServiceId <= 0) {
       _handleCreateBookingFeedback(
         'Layanan tidak valid',
-        'ID layanan dari katalog backend kosong. Muat ulang katalog layanan.',
+        'Data layanan belum lengkap. Muat ulang daftar layanan.',
         showSnackbar: showFailureSnackbar,
         isError: true,
       );
@@ -756,7 +756,7 @@ class ServiceBookingController extends GetxController {
     if (scheduledAtController.text.trim().isEmpty) {
       _handleCreateBookingFeedback(
         'Pilih tanggal kunjungan',
-        'Tentukan jadwal sebelum membuat booking layanan ini.',
+        'Tentukan jadwal sebelum membuat pesanan layanan ini.',
         showSnackbar: showFailureSnackbar,
       );
       return null;
@@ -801,14 +801,14 @@ class ServiceBookingController extends GetxController {
 
       if (showSuccessSnackbar) {
         AppSnackbar.success(
-          'Booking dibuat',
-          'Detail booking sedang dibuka.',
+          'Pesanan dibuat',
+          'Detail pesanan sedang dibuka.',
         );
       }
       return booking;
     } on AppException catch (error) {
       _handleCreateBookingFeedback(
-        'Booking gagal',
+        'Pesanan gagal',
         error.message,
         showSnackbar: showFailureSnackbar,
         isError: true,
@@ -816,8 +816,8 @@ class ServiceBookingController extends GetxController {
       return null;
     } catch (_) {
       _handleCreateBookingFeedback(
-        'Booking gagal',
-        'Tidak bisa membuat booking layanan saat ini.',
+        'Pesanan gagal',
+        'Tidak bisa membuat pesanan layanan saat ini.',
         showSnackbar: showFailureSnackbar,
         isError: true,
       );
@@ -871,7 +871,7 @@ class ServiceBookingController extends GetxController {
   Future<void> openLatestBookingDetail() async {
     final booking = latestBooking.value;
     if (booking == null) {
-      AppSnackbar.info('Booking belum ada', 'Buat booking terlebih dahulu.');
+      AppSnackbar.info('Pesanan belum ada', 'Buat pesanan terlebih dahulu.');
       return;
     }
 
@@ -900,7 +900,7 @@ class ServiceBookingController extends GetxController {
     var booking = latestBooking.value;
 
     if (booking == null) {
-      AppSnackbar.info('Booking belum ada', 'Buat booking terlebih dahulu.');
+      AppSnackbar.info('Pesanan belum ada', 'Buat pesanan terlebih dahulu.');
       return;
     }
 
@@ -922,16 +922,16 @@ class ServiceBookingController extends GetxController {
 
     if (!_midtransService.isSupportedPlatform) {
       AppSnackbar.info(
-        'Midtrans tidak tersedia',
-        'Pembayaran Midtrans hanya berjalan di Android atau iOS.',
+        'Pembayaran belum tersedia',
+        'Pembayaran online hanya tersedia di aplikasi Android atau iOS.',
       );
       return;
     }
 
     if (!_midtransService.isConfigured) {
       AppSnackbar.error(
-        'Midtrans belum aktif',
-        'Isi MIDTRANS_CLIENT_KEY terlebih dulu agar pembayaran bisa dipakai.',
+        'Pembayaran belum tersedia',
+        'Pembayaran online belum tersedia saat ini.',
       );
       return;
     }
@@ -950,8 +950,8 @@ class ServiceBookingController extends GetxController {
       final snapToken = booking.snapToken;
       if (snapToken == null || snapToken.isEmpty) {
         AppSnackbar.info(
-          'Token pembayaran belum tersedia',
-          'Backend belum mengirim snap token untuk booking ini.',
+          'Pembayaran belum siap',
+          'Halaman pembayaran belum siap. Coba beberapa saat lagi.',
         );
         return;
       }
@@ -963,7 +963,7 @@ class ServiceBookingController extends GetxController {
     } catch (_) {
       AppSnackbar.error(
         'Pembayaran gagal',
-        'Tidak bisa membuka halaman pembayaran Midtrans.',
+        'Halaman pembayaran belum bisa dibuka.',
       );
     } finally {
       isOpeningPayment.value = false;
@@ -1001,12 +1001,12 @@ class ServiceBookingController extends GetxController {
       }
       return booking;
     } on AppException catch (error) {
-      AppSnackbar.error('Refresh gagal', error.message);
+      AppSnackbar.error('Status belum diperbarui', error.message);
       return null;
     } catch (_) {
       AppSnackbar.error(
-        'Refresh gagal',
-        'Status booking belum bisa diperbarui.',
+        'Status belum diperbarui',
+        'Status pesanan belum bisa diperbarui.',
       );
       return null;
     } finally {
@@ -1086,8 +1086,8 @@ class ServiceBookingController extends GetxController {
         if (current.status.toLowerCase().trim() == 'cancelled') {
           _logMatchmakingRematchBooking('wait:cancelled', current);
           _handleCreateBookingFeedback(
-            'Booking dibatalkan',
-            'Booking sudah tidak aktif.',
+            'Pesanan dibatalkan',
+            'Pesanan sudah tidak aktif.',
             showSnackbar: false,
             isError: true,
           );
@@ -1241,7 +1241,7 @@ class ServiceBookingController extends GetxController {
   Future<void> loadBookingDetail(int bookingId) async {
     if (bookingId <= 0) {
       bookingDetail.value = null;
-      bookingDetailErrorMessage.value = 'Booking tidak valid.';
+      bookingDetailErrorMessage.value = 'Pesanan tidak valid.';
       return;
     }
 
@@ -1256,7 +1256,7 @@ class ServiceBookingController extends GetxController {
     } on AppException catch (error) {
       bookingDetailErrorMessage.value = error.message;
     } catch (_) {
-      bookingDetailErrorMessage.value = 'Detail booking belum bisa dimuat.';
+      bookingDetailErrorMessage.value = 'Detail pesanan belum bisa dimuat.';
     } finally {
       isLoadingBookingDetail.value = false;
     }
@@ -1308,7 +1308,7 @@ class ServiceBookingController extends GetxController {
 
   Future<void> confirmBookingCompletion(int bookingId, {String? notes}) async {
     if (bookingId <= 0) {
-      AppSnackbar.error('Booking tidak valid', 'Detail booking tidak lengkap.');
+      AppSnackbar.error('Pesanan tidak valid', 'Detail pesanan tidak lengkap.');
       return;
     }
 
@@ -1321,7 +1321,7 @@ class ServiceBookingController extends GetxController {
       _refreshActivities();
       AppSnackbar.success(
         'Layanan dikonfirmasi',
-        'Saldo layanan sudah diproses ke mitra.',
+        'Layanan sudah dikonfirmasi untuk mitra.',
       );
     } on AppException catch (error) {
       AppSnackbar.error('Konfirmasi gagal', error.message);
@@ -1337,7 +1337,7 @@ class ServiceBookingController extends GetxController {
 
   Future<void> cancelBooking(int bookingId, {String? reason}) async {
     if (bookingId <= 0) {
-      AppSnackbar.error('Booking tidak valid', 'Detail booking tidak lengkap.');
+      AppSnackbar.error('Pesanan tidak valid', 'Detail pesanan tidak lengkap.');
       return;
     }
 
@@ -1345,7 +1345,7 @@ class ServiceBookingController extends GetxController {
     if (booking != null && !booking.canCancelBeforePartnerFound) {
       AppSnackbar.info(
         'Tidak bisa dibatalkan',
-        'Booking sudah dibayar, diterima mitra, atau sedang berjalan.',
+        'Pesanan sudah dibayar, diterima mitra, atau sedang berjalan.',
       );
       return;
     }
@@ -1358,13 +1358,13 @@ class ServiceBookingController extends GetxController {
       latestBooking.value = cancelled;
       stopBookingDetailPolling();
       _refreshActivities();
-      AppSnackbar.success('Booking dibatalkan', 'Pesanan berhasil dibatalkan.');
+      AppSnackbar.success('Pesanan dibatalkan', 'Pesanan berhasil dibatalkan.');
     } on AppException catch (error) {
       AppSnackbar.error('Batal gagal', error.message);
     } catch (_) {
       AppSnackbar.error(
         'Batal gagal',
-        'Endpoint pembatalan booking belum tersedia atau sedang bermasalah.',
+        'Pesanan belum bisa dibatalkan saat ini.',
       );
     } finally {
       isCancellingBooking.value = false;

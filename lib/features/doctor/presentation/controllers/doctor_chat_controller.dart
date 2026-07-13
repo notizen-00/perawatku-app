@@ -89,17 +89,17 @@ class DoctorChatController extends GetxController {
   }
 
   String get doctorName =>
-      doctor.value?.name ?? _arguments?.doctorName ?? 'Konsultasi Chat';
+      doctor.value?.name ?? _arguments?.doctorName ?? 'Obrolan Konsultasi';
 
   String get consultationTitle =>
       consultation.value?.consultationCode?.trim().isNotEmpty == true
       ? consultation.value!.consultationCode!
-      : 'Konsultasi Chat';
+      : 'Obrolan Konsultasi';
 
   String get specializationLabel =>
       doctor.value?.profile?.specialization ??
       _arguments?.specialization ??
-      'Konsultasi dokter via chat';
+      'Konsultasi dokter melalui obrolan';
 
   String get consultationStatusLabel =>
       _formatStatusLabel(consultation.value?.status, fallback: 'Menunggu');
@@ -200,7 +200,7 @@ class DoctorChatController extends GetxController {
     } on AppException catch (error) {
       errorMessage.value = error.message;
     } catch (_) {
-      errorMessage.value = 'Gagal menyiapkan konsultasi chat.';
+      errorMessage.value = 'Gagal menyiapkan obrolan konsultasi.';
     } finally {
       isInitializing.value = false;
     }
@@ -229,16 +229,16 @@ class DoctorChatController extends GetxController {
   Future<void> payConsultation() async {
     if (!_midtransService.isSupportedPlatform) {
       AppSnackbar.info(
-        'Midtrans tidak tersedia',
-        'Pembayaran Midtrans hanya berjalan di Android atau iOS.',
+        'Pembayaran belum tersedia',
+        'Pembayaran online hanya tersedia di aplikasi Android atau iOS.',
       );
       return;
     }
 
     if (!_midtransService.isConfigured) {
       AppSnackbar.error(
-        'Midtrans belum aktif',
-        'Isi MIDTRANS_CLIENT_KEY terlebih dulu agar pembayaran bisa dipakai.',
+        'Pembayaran belum tersedia',
+        'Pembayaran online belum aktif saat ini.',
       );
       return;
     }
@@ -261,7 +261,7 @@ class DoctorChatController extends GetxController {
     } catch (_) {
       AppSnackbar.error(
         'Pembayaran gagal',
-        'Tidak bisa membuka halaman pembayaran Midtrans.',
+        'Halaman pembayaran belum bisa dibuka.',
       );
     } finally {
       isPaying.value = false;
@@ -280,7 +280,7 @@ class DoctorChatController extends GetxController {
     if (!currentConsultation.isPaid) {
       AppSnackbar.info(
         'Pembayaran dibutuhkan',
-        'Selesaikan pembayaran dulu sebelum chat dimulai.',
+        'Selesaikan pembayaran dulu sebelum obrolan dimulai.',
       );
       return;
     }
@@ -323,7 +323,7 @@ class DoctorChatController extends GetxController {
     if (currentConsultation == null) {
       AppSnackbar.info(
         'Pembayaran dibutuhkan',
-        'Buat dan bayar konsultasi dulu sebelum membuka chat.',
+        'Buat dan bayar konsultasi dulu sebelum membuka obrolan.',
       );
       return;
     }
@@ -339,7 +339,7 @@ class DoctorChatController extends GetxController {
       if (latestConsultation == null || !latestConsultation.isPaid) {
         AppSnackbar.info(
           'Pembayaran dibutuhkan',
-          'Selesaikan pembayaran konsultasi dulu sebelum membuka chat.',
+          'Selesaikan pembayaran konsultasi dulu sebelum membuka obrolan.',
         );
         return;
       }
@@ -351,10 +351,10 @@ class DoctorChatController extends GetxController {
         );
       }
     } on AppException catch (error) {
-      AppSnackbar.error('Chat belum siap', error.message);
+      AppSnackbar.error('Obrolan belum siap', error.message);
     } catch (_) {
       AppSnackbar.error(
-        'Chat belum siap',
+        'Obrolan belum siap',
         'Status konsultasi belum bisa disiapkan saat ini.',
       );
     } finally {
@@ -566,7 +566,7 @@ class DoctorChatController extends GetxController {
     if (status == 'settlement' || status == 'capture') {
       AppSnackbar.success(
         'Pembayaran berhasil',
-        'Konsultasi sudah aktif. Anda bisa mulai chat dengan dokter.',
+        'Konsultasi sudah aktif. Anda bisa mulai mengobrol dengan dokter.',
       );
     } else if (status == 'pending') {
       AppSnackbar.info(
@@ -587,7 +587,7 @@ class DoctorChatController extends GetxController {
     } else {
       AppSnackbar.info(
         'Status pembayaran',
-        result.message ?? 'Transaksi diproses oleh Midtrans.',
+        result.message ?? 'Pembayaran sedang diproses.',
       );
     }
 
@@ -623,8 +623,8 @@ class DoctorChatController extends GetxController {
             );
           } else if (!Get.isSnackbarOpen) {
             AppSnackbar.success(
-              'Chat siap dipakai',
-              'Pembayaran sudah terverifikasi dan chat dengan dokter sudah terbuka.',
+              'Obrolan siap digunakan',
+              'Pembayaran sudah terverifikasi dan obrolan dengan dokter sudah terbuka.',
             );
           }
           return;

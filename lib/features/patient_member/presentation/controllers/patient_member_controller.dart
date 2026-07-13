@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/errors/app_exception.dart';
@@ -33,6 +34,15 @@ class PatientMemberController extends GetxController {
   final RxnString errorMessage = RxnString();
   final Rxn<PatientMemberEntity> editingMember = Rxn<PatientMemberEntity>();
   final RxString selectedRelationship = ''.obs;
+  final RxList<IndonesiaAreaOption> provinces = <IndonesiaAreaOption>[].obs;
+  final RxList<IndonesiaAreaOption> regencies = <IndonesiaAreaOption>[].obs;
+  final RxList<IndonesiaAreaOption> districts = <IndonesiaAreaOption>[].obs;
+  final Rxn<IndonesiaAreaOption> selectedProvince = Rxn<IndonesiaAreaOption>();
+  final Rxn<IndonesiaAreaOption> selectedRegency = Rxn<IndonesiaAreaOption>();
+  final Rxn<IndonesiaAreaOption> selectedDistrict = Rxn<IndonesiaAreaOption>();
+  final RxBool isLoadingProvinces = false.obs;
+  final RxBool isLoadingRegencies = false.obs;
+  final RxBool isLoadingDistricts = false.obs;
 
   final searchController = TextEditingController();
   final nameController = TextEditingController();
@@ -57,6 +67,15 @@ class PatientMemberController extends GetxController {
   final latitudeController = TextEditingController();
   final longitudeController = TextEditingController();
   final RxBool isPrimaryForm = false.obs;
+
+  final Dio _areaDio = Dio(
+    BaseOptions(
+      baseUrl: 'https://www.emsifa.com/api-wilayah-indonesia/api',
+      connectTimeout: const Duration(seconds: 20),
+      receiveTimeout: const Duration(seconds: 20),
+      headers: const {'Accept': 'application/json'},
+    ),
+  );
 
   @override
   void onInit() {
@@ -121,6 +140,7 @@ class PatientMemberController extends GetxController {
   void startCreate() {
     editingMember.value = null;
     _clearForm();
+    loadProvinces();
   }
 
   void startEdit(PatientMemberEntity member) {
@@ -147,6 +167,88 @@ class PatientMemberController extends GetxController {
     latitudeController.text = member.latitude?.toString() ?? '';
     longitudeController.text = member.longitude?.toString() ?? '';
     isPrimaryForm.value = member.isPrimary;
+    _loadAreasForEditing(member);
+  }
+
+  Future<void> loadProvinces() async {
+    if (isLoadingProvinces.value || provinces.isNotEmpty) {
+      return;
+    }
+
+    isLoadingProvinces.value = true;
+    try {
+      final response = await _areaDio.get<List<dynamic>>('/provinces.json');
+      provinces.assignAll(_readAreaOptions(response.data));
+    } catch (_) {
+      AppSnackbar.error(
+        'Wilayah gagal dimuat',
+        'Daftar provinsi belum bisa dimuat. Coba lagi.',
+      );
+    } finally {
+      isLoadingProvinces.value = false;
+    }
+  }
+
+  Future<void> selectProvince(IndonesiaAreaOption? province) async {
+    selectedProvince.value = province;
+    selectedRegency.value = null;
+    selectedDistrict.value = null;
+    regencies.clear();
+    districts.clear();
+    provinceController.text = province?.name ?? '';
+    cityController.clear();
+    districtController.clear();
+
+    if (province == null) {
+      return;
+    }
+
+    isLoadingRegencies.value = true;
+    try {
+      final response = await _areaDio.get<List<dynamic>>(
+        '/regencies/${province.id}.json',
+      );
+      regencies.assignAll(_readAreaOptions(response.data));
+    } catch (_) {
+      AppSnackbar.error(
+        'Wilayah gagal dimuat',
+        'Daftar kota/kabupaten belum bisa dimuat.',
+      );
+    } finally {
+      isLoadingRegencies.value = false;
+    }
+  }
+
+  Future<void> selectRegency(IndonesiaAreaOption? regency) async {
+    selectedRegency.value = regency;
+    selectedDistrict.value = null;
+    districts.clear();
+    cityController.text = regency?.name ?? '';
+    districtController.clear();
+
+    if (regency == null) {
+      return;
+    }
+
+    isLoadingDistricts.value = true;
+    try {
+      final response = await _areaDio.get<List<dynamic>>(
+        '/districts/${regency.id}.json',
+      );
+      districts.assignAll(_readAreaOptions(response.data));
+    } catch (_) {
+      AppSnackbar.error(
+        'Wilayah gagal dimuat',
+        'Daftar kecamatan belum bisa dimuat.',
+      );
+    } finally {
+      isLoadingDistricts.value = false;
+    }
+  }
+
+  void selectDistrict(IndonesiaAreaOption? district) {
+    selectedDistrict.value = district;
+    districtController.text = district?.name ?? '';
   }
 
   void setDateOfBirth(DateTime date) {
@@ -187,9 +289,22 @@ class PatientMemberController extends GetxController {
 
     final latitude = _parseOptionalDouble(latitudeController.text);
     final longitude = _parseOptionalDouble(longitudeController.text);
-    if ((latitudeController.text.trim().isNotEmpty && latitude == null) ||
-        (longitudeController.text.trim().isNotEmpty && longitude == null)) {
-      AppSnackbar.info('Koordinat tidak valid', 'Isi latitude dan longitude dengan angka.');
+    if (addressController.text.trim().isEmpty ||
+        selectedProvince.value == null ||
+        selectedRegency.value == null ||
+        selectedDistrict.value == null) {
+      AppSnackbar.info(
+        'Alamat belum lengkap',
+        'Isi alamat lengkap, provinsi, kota/kabupaten, dan kecamatan.',
+      );
+      return false;
+    }
+
+    if (latitude == null || longitude == null) {
+      AppSnackbar.info(
+        'Titik peta wajib dipilih',
+        'Pilih titik lokasi pasien di peta terlebih dahulu.',
+      );
       return false;
     }
 
@@ -212,9 +327,9 @@ class PatientMemberController extends GetxController {
         recipientName: recipientNameController.text,
         recipientPhone: recipientPhoneController.text,
         address: addressController.text,
-        province: provinceController.text,
-        city: cityController.text,
-        district: districtController.text,
+        province: selectedProvince.value?.name ?? provinceController.text,
+        city: selectedRegency.value?.name ?? cityController.text,
+        district: selectedDistrict.value?.name ?? districtController.text,
         postalCode: postalCodeController.text,
         latitude: latitude,
         longitude: longitude,
@@ -293,7 +408,71 @@ class PatientMemberController extends GetxController {
     postalCodeController.clear();
     latitudeController.clear();
     longitudeController.clear();
+    selectedProvince.value = null;
+    selectedRegency.value = null;
+    selectedDistrict.value = null;
+    regencies.clear();
+    districts.clear();
     isPrimaryForm.value = members.isEmpty;
+  }
+
+  Future<void> _loadAreasForEditing(PatientMemberEntity member) async {
+    await loadProvinces();
+    final province = _findAreaByName(provinces, member.province);
+    if (province == null) {
+      selectedProvince.value = null;
+      selectedRegency.value = null;
+      selectedDistrict.value = null;
+      regencies.clear();
+      districts.clear();
+      return;
+    }
+
+    await selectProvince(province);
+    final regency = _findAreaByName(regencies, member.city);
+    if (regency == null) {
+      return;
+    }
+
+    await selectRegency(regency);
+    final district = _findAreaByName(districts, member.district);
+    if (district != null) {
+      selectDistrict(district);
+    }
+  }
+
+  IndonesiaAreaOption? _findAreaByName(
+    Iterable<IndonesiaAreaOption> source,
+    String name,
+  ) {
+    final normalized = _normalizeAreaName(name);
+    if (normalized.isEmpty) {
+      return null;
+    }
+
+    for (final item in source) {
+      if (_normalizeAreaName(item.name) == normalized) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  String _normalizeAreaName(String value) {
+    return value.trim().replaceAll(RegExp(r'\s+'), ' ').toUpperCase();
+  }
+
+  List<IndonesiaAreaOption> _readAreaOptions(List<dynamic>? source) {
+    if (source == null) {
+      return const <IndonesiaAreaOption>[];
+    }
+
+    final items = source
+        .whereType<Map<String, dynamic>>()
+        .map(IndonesiaAreaOption.fromJson)
+        .toList();
+    items.sort((first, second) => first.name.compareTo(second.name));
+    return items;
   }
 
   int? _parseOptionalInt(String value) {
@@ -309,4 +488,21 @@ class PatientMemberController extends GetxController {
     if (trimmed.isEmpty) return null;
     return double.tryParse(trimmed);
   }
+}
+
+class IndonesiaAreaOption {
+  const IndonesiaAreaOption({
+    required this.id,
+    required this.name,
+  });
+
+  factory IndonesiaAreaOption.fromJson(Map<String, dynamic> json) {
+    return IndonesiaAreaOption(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+    );
+  }
+
+  final String id;
+  final String name;
 }

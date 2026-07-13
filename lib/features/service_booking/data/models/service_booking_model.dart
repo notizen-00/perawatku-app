@@ -167,7 +167,7 @@ class ServiceBookingModel extends ServiceBookingEntity {
       id: _readInt(booking['id']) ?? 0,
       bookingCode:
           _readString(booking['booking_code'] ?? booking['code']) ??
-          'Booking #${booking['id'] ?? '-'}',
+          'Pesanan #${booking['id'] ?? '-'}',
       serviceId: _readInt(booking['service_id']),
       assignedPartnerUserId: _readInt(
         booking['assigned_partner_user_id'] ??
