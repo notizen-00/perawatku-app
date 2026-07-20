@@ -15,11 +15,13 @@ import '../../../patient_member/domain/entities/patient_member_entity.dart';
 import '../../../patient_member/domain/usecases/get_patient_members_use_case.dart';
 import '../../domain/entities/service_booking_entity.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
+import '../../domain/entities/service_booking_tracking_entity.dart';
 import '../../domain/usecases/cancel_service_booking_use_case.dart';
 import '../../domain/usecases/check_promo_code_use_case.dart';
 import '../../domain/usecases/confirm_service_booking_completion_use_case.dart';
 import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
+import '../../domain/usecases/get_service_booking_tracking_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
 import '../../domain/usecases/pay_service_booking_use_case.dart';
 import '../../domain/usecases/rematch_service_booking_use_case.dart';
@@ -30,6 +32,7 @@ class ServiceBookingController extends GetxController {
     required GetServiceBookingServicesUseCase getServicesUseCase,
     required CreateServiceBookingUseCase createBookingUseCase,
     required GetServiceBookingUseCase getBookingUseCase,
+    required GetServiceBookingTrackingUseCase getTrackingUseCase,
     required PayServiceBookingUseCase payBookingUseCase,
     required RematchServiceBookingUseCase rematchBookingUseCase,
     required ConfirmServiceBookingCompletionUseCase confirmCompletionUseCase,
@@ -41,6 +44,7 @@ class ServiceBookingController extends GetxController {
        _getServicesUseCase = getServicesUseCase,
        _createBookingUseCase = createBookingUseCase,
        _getBookingUseCase = getBookingUseCase,
+       _getTrackingUseCase = getTrackingUseCase,
        _payBookingUseCase = payBookingUseCase,
        _rematchBookingUseCase = rematchBookingUseCase,
        _confirmCompletionUseCase = confirmCompletionUseCase,
@@ -53,6 +57,7 @@ class ServiceBookingController extends GetxController {
   final GetServiceBookingServicesUseCase _getServicesUseCase;
   final CreateServiceBookingUseCase _createBookingUseCase;
   final GetServiceBookingUseCase _getBookingUseCase;
+  final GetServiceBookingTrackingUseCase _getTrackingUseCase;
   final PayServiceBookingUseCase _payBookingUseCase;
   final RematchServiceBookingUseCase _rematchBookingUseCase;
   final ConfirmServiceBookingCompletionUseCase _confirmCompletionUseCase;
@@ -81,6 +86,8 @@ class ServiceBookingController extends GetxController {
   final RxBool isConfirmingCompletion = false.obs;
   final RxBool isCancellingBooking = false.obs;
   final RxBool isLivePollingBookingDetail = false.obs;
+  final RxBool isPollingTracking = false.obs;
+  final RxBool isLoadingTracking = false.obs;
   final RxBool isCheckingPromo = false.obs;
   final RxnString errorMessage = RxnString();
   final RxnString serviceErrorMessage = RxnString();
@@ -94,7 +101,10 @@ class ServiceBookingController extends GetxController {
       Rxn<PatientMemberEntity>();
   final Rxn<ServiceBookingEntity> latestBooking = Rxn<ServiceBookingEntity>();
   final Rxn<ServiceBookingEntity> bookingDetail = Rxn<ServiceBookingEntity>();
+  final Rxn<ServiceBookingTrackingEntity> latestTracking =
+      Rxn<ServiceBookingTrackingEntity>();
   final RxnString bookingDetailErrorMessage = RxnString();
+  final RxnString trackingErrorMessage = RxnString();
 
   final TextEditingController notesController = TextEditingController();
   final TextEditingController scheduledAtController = TextEditingController();
@@ -110,6 +120,7 @@ class ServiceBookingController extends GetxController {
   int _categoryServicesRequestId = 0;
   bool _isRefreshingServiceCatalog = false;
   Timer? _bookingDetailPollingTimer;
+  Timer? _trackingPollingTimer;
   String? _pendingCreateBookingFeedbackTitle;
   String? _pendingCreateBookingFeedbackMessage;
   bool _pendingCreateBookingFeedbackIsError = false;
@@ -137,6 +148,7 @@ class ServiceBookingController extends GetxController {
     promoCodeController.dispose();
     _midtransService.removeTransactionFinishedCallback();
     stopBookingDetailPolling();
+    stopTrackingPolling();
     super.onClose();
   }
 
@@ -150,7 +162,9 @@ class ServiceBookingController extends GetxController {
     _servicesByCategoryKey.clear();
     latestBooking.value = null;
     bookingDetail.value = null;
+    latestTracking.value = null;
     serviceErrorMessage.value = null;
+    trackingErrorMessage.value = null;
     promoStatusMessage.value = null;
     isPromoValid.value = false;
     notesController.clear();
@@ -1275,6 +1289,12 @@ class ServiceBookingController extends GetxController {
       bookingDetail.value = booking;
       latestBooking.value = booking;
       _refreshActivities();
+      if (booking.canTrackPartner) {
+        await refreshTracking(bookingId);
+      } else {
+        latestTracking.value = null;
+        trackingErrorMessage.value = null;
+      }
       if (booking.canRequestPartnerRematch) {
         await cancelBookingWhenNoReplacementPartner(
           booking,
@@ -1319,6 +1339,62 @@ class ServiceBookingController extends GetxController {
     isLivePollingBookingDetail.value = false;
   }
 
+  void startTrackingPolling(int bookingId) {
+    if (bookingId <= 0) {
+      return;
+    }
+
+    isPollingTracking.value = true;
+    _trackingPollingTimer?.cancel();
+    unawaited(refreshTracking(bookingId));
+    _trackingPollingTimer = Timer.periodic(const Duration(seconds: 10), (
+      _,
+    ) async {
+      final current = bookingDetail.value ?? latestBooking.value;
+      if (current == null ||
+          current.status.toLowerCase().trim() == 'cancelled' ||
+          current.isCompleted) {
+        stopTrackingPolling();
+        return;
+      }
+
+      if (!current.canTrackPartner) {
+        return;
+      }
+
+      await refreshTracking(bookingId);
+    });
+  }
+
+  void stopTrackingPolling() {
+    _trackingPollingTimer?.cancel();
+    _trackingPollingTimer = null;
+    isPollingTracking.value = false;
+  }
+
+  Future<ServiceBookingTrackingEntity?> refreshTracking(int bookingId) async {
+    if (bookingId <= 0 || isLoadingTracking.value) {
+      return latestTracking.value;
+    }
+
+    isLoadingTracking.value = true;
+    trackingErrorMessage.value = null;
+
+    try {
+      final tracking = await _getTrackingUseCase(bookingId);
+      latestTracking.value = tracking;
+      return tracking;
+    } on AppException catch (error) {
+      trackingErrorMessage.value = error.message;
+      return latestTracking.value;
+    } catch (_) {
+      trackingErrorMessage.value = 'Lokasi mitra belum bisa dimuat.';
+      return latestTracking.value;
+    } finally {
+      isLoadingTracking.value = false;
+    }
+  }
+
   Future<void> loadBookingDetailSilently(int bookingId) async {
     if (bookingId <= 0 || isLoadingBookingDetail.value) {
       return;
@@ -1329,6 +1405,13 @@ class ServiceBookingController extends GetxController {
       bookingDetail.value = booking;
       latestBooking.value = booking;
       _refreshActivities();
+      if (booking.canTrackPartner) {
+        startTrackingPolling(bookingId);
+      } else {
+        stopTrackingPolling();
+        latestTracking.value = null;
+        trackingErrorMessage.value = null;
+      }
       if (booking.canRequestPartnerRematch) {
         await cancelBookingWhenNoReplacementPartner(
           booking,
@@ -1391,6 +1474,8 @@ class ServiceBookingController extends GetxController {
       bookingDetail.value = cancelled;
       latestBooking.value = cancelled;
       stopBookingDetailPolling();
+      stopTrackingPolling();
+      latestTracking.value = null;
       _refreshActivities();
       AppSnackbar.success('Pesanan dibatalkan', 'Pesanan berhasil dibatalkan.');
     } on AppException catch (error) {

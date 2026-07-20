@@ -178,6 +178,15 @@ class ActivityPage extends StatelessWidget {
       );
     }
 
+    if (status == 'treatment' ||
+        status == 'ditangani' ||
+        status == 'di tangani') {
+      return const _ActivityStatusStyle(
+        label: 'Ditangani',
+        color: AppColors.primary,
+      );
+    }
+
     if (status == 'pending' ||
         status == 'processing' ||
         status == 'scheduled') {

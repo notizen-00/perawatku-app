@@ -146,7 +146,7 @@ class ActivityRecordModel extends ActivityRecordEntity {
       category: 'other',
       title: serviceName,
       subtitle: partnerName,
-      status: json['status']?.toString() ?? 'unknown',
+      status: _resolveServiceBookingStatus(json),
       dateTime: _parseDateTime(
         json['scheduled_at'] ?? json['created_at'] ?? json['updated_at'],
       ),
@@ -246,6 +246,55 @@ class ActivityRecordModel extends ActivityRecordEntity {
     }
 
     return 'unknown';
+  }
+
+  static String _resolveServiceBookingStatus(Map<String, dynamic> json) {
+    final status = json['status']?.toString() ?? 'unknown';
+    final normalizedStatus = status.toLowerCase().trim();
+    if (normalizedStatus == 'completed' ||
+        normalizedStatus == 'done' ||
+        normalizedStatus == 'cancelled' ||
+        normalizedStatus == 'canceled' ||
+        normalizedStatus == 'failed') {
+      return status;
+    }
+
+    final histories = json['histories'];
+    if (histories is List && histories.any(_isTreatmentHistory)) {
+      return 'treatment';
+    }
+    return status;
+  }
+
+  static bool _isTreatmentHistory(dynamic value) {
+    if (value is! Map) {
+      return false;
+    }
+
+    final candidates = <dynamic>[
+      value['type'],
+      value['status'],
+      value['title'],
+      value['label'],
+      value['action'],
+      value['notes'],
+      value['note'],
+      value['description'],
+      value['message'],
+    ];
+
+    return candidates
+        .whereType<Object>()
+        .map((item) => item.toString().toLowerCase().trim())
+        .any(
+          (item) =>
+              item == 'treatment' ||
+              item.contains('treatment') ||
+              item.contains('ditangani') ||
+              item.contains('di tangani') ||
+              item.contains('penanganan') ||
+              item.contains('sampai'),
+        );
   }
 
   static String _formatAmount(dynamic value) {

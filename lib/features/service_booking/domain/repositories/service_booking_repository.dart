@@ -1,5 +1,6 @@
 import '../entities/service_booking_entity.dart';
 import '../entities/service_booking_service_entity.dart';
+import '../entities/service_booking_tracking_entity.dart';
 
 abstract class ServiceBookingRepository {
   Future<List<ServiceBookingServiceEntity>> getServices({
@@ -29,6 +30,8 @@ abstract class ServiceBookingRepository {
   });
 
   Future<ServiceBookingEntity> getBooking(int bookingId);
+
+  Future<ServiceBookingTrackingEntity> getTracking(int bookingId);
 
   Future<ServiceBookingEntity> payBooking(int bookingId, {String? notes});
 

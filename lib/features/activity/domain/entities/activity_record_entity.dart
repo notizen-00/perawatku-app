@@ -77,6 +77,9 @@ class ActivityRecordEntity {
         normalized == 'pending' ||
         normalized == 'processing' ||
         normalized == 'scheduled' ||
+        normalized == 'treatment' ||
+        normalized == 'ditangani' ||
+        normalized == 'di tangani' ||
         normalized == 'paid' ||
         normalized == 'settlement' ||
         normalized == 'capture' ||

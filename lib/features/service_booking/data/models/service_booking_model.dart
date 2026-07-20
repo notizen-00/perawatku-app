@@ -43,6 +43,7 @@ class ServiceBookingModel extends ServiceBookingEntity {
     required super.acceptedAt,
     required super.startedAt,
     required super.completedAt,
+    required super.histories,
     required super.partnerBalanceTransactionId,
   });
 
@@ -279,13 +280,17 @@ class ServiceBookingModel extends ServiceBookingEntity {
             data?['patient_longitude'],
       ),
       partnerLatitude: _readDouble(
-        partner['latitude'] ??
+        booking['partner_current_latitude'] ??
+            data?['partner_current_latitude'] ??
+            partner['latitude'] ??
             partnerProfile['latitude'] ??
             booking['partner_latitude'] ??
             data?['partner_latitude'],
       ),
       partnerLongitude: _readDouble(
-        partner['longitude'] ??
+        booking['partner_current_longitude'] ??
+            data?['partner_current_longitude'] ??
+            partner['longitude'] ??
             partnerProfile['longitude'] ??
             booking['partner_longitude'] ??
             data?['partner_longitude'],
@@ -309,6 +314,9 @@ class ServiceBookingModel extends ServiceBookingEntity {
       startedAt: _readString(booking['started_at'] ?? data?['started_at']),
       completedAt: _readString(
         booking['completed_at'] ?? data?['completed_at'],
+      ),
+      histories: _readHistories(
+        booking['histories'] ?? data?['histories'] ?? root['histories'],
       ),
       partnerBalanceTransactionId: _readInt(
         booking['partner_balance_transaction_id'] ??
@@ -381,6 +389,18 @@ class ServiceBookingModel extends ServiceBookingEntity {
       return const <String>[];
     }
     return <String>[text];
+  }
+
+  static List<ServiceBookingHistoryEntity> _readHistories(dynamic value) {
+    if (value is! List) {
+      return const <ServiceBookingHistoryEntity>[];
+    }
+
+    return value
+        .map(_readMap)
+        .whereType<Map<String, dynamic>>()
+        .map(ServiceBookingHistoryModel.fromJson)
+        .toList();
   }
 
   static List<String> _resolveFeeMessages({
@@ -523,6 +543,39 @@ class ServiceBookingModel extends ServiceBookingEntity {
     }
 
     return DateTime.tryParse(text);
+  }
+}
+
+class ServiceBookingHistoryModel extends ServiceBookingHistoryEntity {
+  const ServiceBookingHistoryModel({
+    required super.id,
+    required super.type,
+    required super.status,
+    required super.title,
+    required super.notes,
+    required super.createdAt,
+  });
+
+  factory ServiceBookingHistoryModel.fromJson(Map<String, dynamic> json) {
+    return ServiceBookingHistoryModel(
+      id: ServiceBookingModel._readInt(json['id']),
+      type: ServiceBookingModel._readString(
+        json['type'] ?? json['action_type'] ?? json['history_type'],
+      ),
+      status: ServiceBookingModel._readString(json['status']),
+      title: ServiceBookingModel._readString(
+        json['title'] ?? json['label'] ?? json['action'],
+      ),
+      notes: ServiceBookingModel._readString(
+        json['notes'] ?? json['note'] ?? json['description'] ?? json['message'],
+      ),
+      createdAt: ServiceBookingModel._readString(
+        json['created_at'] ??
+            json['happened_at'] ??
+            json['updated_at'] ??
+            json['timestamp'],
+      ),
+    );
   }
 }
 

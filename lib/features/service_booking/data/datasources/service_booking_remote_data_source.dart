@@ -7,6 +7,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/network/response_extractors.dart';
 import '../models/service_booking_model.dart';
 import '../models/service_booking_service_model.dart';
+import '../models/service_booking_tracking_model.dart';
 
 abstract class ServiceBookingRemoteDataSource {
   Future<List<ServiceBookingServiceModel>> getServices({
@@ -36,6 +37,8 @@ abstract class ServiceBookingRemoteDataSource {
   });
 
   Future<ServiceBookingModel> getBooking(int bookingId);
+
+  Future<ServiceBookingTrackingModel> getTracking(int bookingId);
 
   Future<ServiceBookingModel> payBooking(int bookingId, {String? notes});
 
@@ -144,6 +147,15 @@ class ServiceBookingRemoteDataSourceImpl
     );
 
     return ServiceBookingModel.fromJson(response);
+  }
+
+  @override
+  Future<ServiceBookingTrackingModel> getTracking(int bookingId) async {
+    final response = await _apiClient.get(
+      AppEndpoints.patientServiceBookingTracking(bookingId),
+    );
+
+    return ServiceBookingTrackingModel.fromJson(response);
   }
 
   @override

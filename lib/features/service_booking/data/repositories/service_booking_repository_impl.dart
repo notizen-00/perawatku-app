@@ -1,5 +1,6 @@
 import '../../domain/entities/service_booking_entity.dart';
 import '../../domain/entities/service_booking_service_entity.dart';
+import '../../domain/entities/service_booking_tracking_entity.dart';
 import '../../domain/repositories/service_booking_repository.dart';
 import '../datasources/service_booking_remote_data_source.dart';
 
@@ -57,6 +58,11 @@ class ServiceBookingRepositoryImpl implements ServiceBookingRepository {
   @override
   Future<ServiceBookingEntity> getBooking(int bookingId) {
     return _remoteDataSource.getBooking(bookingId);
+  }
+
+  @override
+  Future<ServiceBookingTrackingEntity> getTracking(int bookingId) {
+    return _remoteDataSource.getTracking(bookingId);
   }
 
   @override

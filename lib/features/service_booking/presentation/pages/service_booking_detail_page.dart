@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
@@ -12,11 +14,13 @@ import '../../../map/domain/usecases/get_partner_locations_use_case.dart';
 import '../../../nurse/domain/usecases/get_nurses_use_case.dart';
 import '../../../patient_member/domain/usecases/get_patient_members_use_case.dart';
 import '../../domain/entities/service_booking_entity.dart';
+import '../../domain/entities/service_booking_tracking_entity.dart';
 import '../../domain/usecases/cancel_service_booking_use_case.dart';
 import '../../domain/usecases/check_promo_code_use_case.dart';
 import '../../domain/usecases/confirm_service_booking_completion_use_case.dart';
 import '../../domain/usecases/create_service_booking_use_case.dart';
 import '../../domain/usecases/get_service_booking_services_use_case.dart';
+import '../../domain/usecases/get_service_booking_tracking_use_case.dart';
 import '../../domain/usecases/get_service_booking_use_case.dart';
 import '../../domain/usecases/pay_service_booking_use_case.dart';
 import '../../domain/usecases/rematch_service_booking_use_case.dart';
@@ -42,6 +46,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
   final RxDouble _routeDurationSeconds = 0.0.obs;
   final RxnString _routeErrorMessage = RxnString();
   Worker? _bookingDetailWorker;
+  Worker? _trackingWorker;
 
   @override
   void initState() {
@@ -52,7 +57,13 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
     _bookingDetailWorker = ever<ServiceBookingEntity?>(
       controller.bookingDetail,
       (booking) {
-        _syncTrackingRoute(booking);
+        _syncTrackingPolling(booking);
+      },
+    );
+    _trackingWorker = ever<ServiceBookingTrackingEntity?>(
+      controller.latestTracking,
+      (tracking) {
+        _syncTrackingRoute(controller.bookingDetail.value, tracking);
       },
     );
 
@@ -64,13 +75,19 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
       }
       controller.loadBookingDetail(arguments.bookingId);
       controller.startBookingDetailPolling(arguments.bookingId);
+      if ((initialBooking ?? controller.bookingDetail.value)?.canTrackPartner ==
+          true) {
+        controller.startTrackingPolling(arguments.bookingId);
+      }
     });
   }
 
   @override
   void dispose() {
     _bookingDetailWorker?.dispose();
+    _trackingWorker?.dispose();
     controller.stopBookingDetailPolling();
+    controller.stopTrackingPolling();
     _trackingMapController.dispose();
     super.dispose();
   }
@@ -86,6 +103,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
         getServicesUseCase: Get.find<GetServiceBookingServicesUseCase>(),
         createBookingUseCase: Get.find<CreateServiceBookingUseCase>(),
         getBookingUseCase: Get.find<GetServiceBookingUseCase>(),
+        getTrackingUseCase: Get.find<GetServiceBookingTrackingUseCase>(),
         payBookingUseCase: Get.find<PayServiceBookingUseCase>(),
         rematchBookingUseCase: Get.find<RematchServiceBookingUseCase>(),
         confirmCompletionUseCase:
@@ -128,8 +146,15 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
           return const Center(child: Text('Detail pesanan belum tersedia.'));
         }
 
+        final tracking = controller.latestTracking.value;
+
         return RefreshIndicator(
-          onRefresh: () => controller.loadBookingDetail(arguments.bookingId),
+          onRefresh: () async {
+            await controller.loadBookingDetail(arguments.bookingId);
+            if (controller.bookingDetail.value?.canTrackPartner == true) {
+              await controller.refreshTracking(arguments.bookingId);
+            }
+          },
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
@@ -180,6 +205,7 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
                   collapseMode: CollapseMode.parallax,
                   background: _PremiumMapPreview(
                     booking: booking,
+                    tracking: tracking,
                     mapController: _trackingMapController,
                     routePoints: _routePoints,
                   ),
@@ -204,7 +230,12 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
                       isOpeningPayment: controller.isOpeningPayment,
                       isRematchingPartner: controller.isRematchingPartner,
                       isLoadingBookingDetail: controller.isLoadingBookingDetail,
-                      onRefreshRoute: () => _loadTrackingRoute(booking),
+                      onRefreshRoute: () async {
+                        final latestTracking = await controller.refreshTracking(
+                          arguments.bookingId,
+                        );
+                        await _loadTrackingRoute(booking, latestTracking);
+                      },
                       onRefreshDetail: () =>
                           controller.loadBookingDetail(arguments.bookingId),
                       onOpenDetail: () => _openOrderDetail(booking),
@@ -277,10 +308,9 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
     );
   }
 
-  Future<void> _syncTrackingRoute(ServiceBookingEntity? booking) async {
-    if (booking == null ||
-        !booking.isOnTheWay ||
-        !booking.hasTrackingCoordinates) {
+  void _syncTrackingPolling(ServiceBookingEntity? booking) {
+    if (booking == null || !booking.canTrackPartner) {
+      controller.stopTrackingPolling();
       _routePoints.clear();
       _routeDistanceMeters.value = 0;
       _routeDurationSeconds.value = 0;
@@ -288,11 +318,27 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
       return;
     }
 
-    await _loadTrackingRoute(booking);
+    controller.startTrackingPolling(booking.id);
+    unawaited(_syncTrackingRoute(booking, controller.latestTracking.value));
   }
 
-  Future<void> _loadTrackingRoute(ServiceBookingEntity booking) async {
-    if (!booking.hasTrackingCoordinates || _isLoadingRoute.value) {
+  Future<void> _syncTrackingRoute(
+    ServiceBookingEntity? booking,
+    ServiceBookingTrackingEntity? tracking,
+  ) async {
+    if (booking == null || !booking.canTrackPartner) {
+      return;
+    }
+
+    await _loadTrackingRoute(booking, tracking);
+  }
+
+  Future<void> _loadTrackingRoute(
+    ServiceBookingEntity booking,
+    ServiceBookingTrackingEntity? tracking,
+  ) async {
+    final points = _trackingPoints(booking, tracking);
+    if (points == null || _isLoadingRoute.value) {
       return;
     }
 
@@ -301,12 +347,12 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
 
     try {
       final route = await _getNavigationRouteUseCase.execute(
-        originLatitude: booking.partnerLatitude!,
-        originLongitude: booking.partnerLongitude!,
-        destinationLatitude: booking.patientLatitude!,
-        destinationLongitude: booking.patientLongitude!,
+        originLatitude: points.partner.latitude,
+        originLongitude: points.partner.longitude,
+        destinationLatitude: points.patient.latitude,
+        destinationLongitude: points.patient.longitude,
       );
-      _applyRoute(route, booking);
+      _applyRoute(route, points);
     } catch (_) {
       _routeErrorMessage.value = 'Rute belum bisa dimuat.';
     } finally {
@@ -314,14 +360,14 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
     }
   }
 
-  void _applyRoute(NavigationRoute route, ServiceBookingEntity booking) {
+  void _applyRoute(NavigationRoute route, _TrackingPoints points) {
     _routePoints.assignAll(route.points);
     _routeDistanceMeters.value = route.distanceMeters;
     _routeDurationSeconds.value = route.durationSeconds;
 
     final center = LatLng(
-      (booking.partnerLatitude! + booking.patientLatitude!) / 2,
-      (booking.partnerLongitude! + booking.patientLongitude!) / 2,
+      (points.partner.latitude + points.patient.latitude) / 2,
+      (points.partner.longitude + points.patient.longitude) / 2,
     );
     final zoom = _zoomForDistance(route.distanceMeters);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -343,6 +389,42 @@ class _ServiceBookingDetailPageState extends State<ServiceBookingDetailPage> {
     }
     return 11.5;
   }
+
+  _TrackingPoints? _trackingPoints(
+    ServiceBookingEntity booking,
+    ServiceBookingTrackingEntity? tracking,
+  ) {
+    final partnerLatitude =
+        tracking?.partnerLocation?.latitude ?? booking.partnerLatitude;
+    final partnerLongitude =
+        tracking?.partnerLocation?.longitude ?? booking.partnerLongitude;
+    final patientLatitude = tracking?.destination?.latitude ??
+        booking.patientLatitude;
+    final patientLongitude = tracking?.destination?.longitude ??
+        booking.patientLongitude;
+
+    if (partnerLatitude == null ||
+        partnerLongitude == null ||
+        patientLatitude == null ||
+        patientLongitude == null) {
+      return null;
+    }
+
+    return _TrackingPoints(
+      partner: LatLng(partnerLatitude, partnerLongitude),
+      patient: LatLng(patientLatitude, patientLongitude),
+    );
+  }
+}
+
+class _TrackingPoints {
+  const _TrackingPoints({
+    required this.partner,
+    required this.patient,
+  });
+
+  final LatLng partner;
+  final LatLng patient;
 }
 
 class ServiceBookingOrderDetailPage extends StatefulWidget {
@@ -506,7 +588,7 @@ class _ServiceBookingOrderDetailPageState
                   label: 'Nomor layanan',
                   value: booking.serviceId?.toString() ?? '-',
                 ),
-                _DetailRow(label: 'Status', value: booking.status),
+                _DetailRow(label: 'Status', value: _formatStatus(booking)),
                 _DetailRow(
                   label: 'Jadwal',
                   value: _formatDateTime(booking.scheduledAt),
@@ -518,6 +600,10 @@ class _ServiceBookingOrderDetailPageState
                 _DetailRow(
                   label: 'Mulai jalan',
                   value: _formatDateTime(booking.startedAt),
+                ),
+                _DetailRow(
+                  label: 'Ditangani',
+                  value: _formatDateTime(booking.treatmentAt),
                 ),
                 _DetailRow(
                   label: 'Selesai',
@@ -700,6 +786,32 @@ class _ServiceBookingOrderDetailPageState
     }
     return parts.join(' - ');
   }
+
+  String _formatStatus(ServiceBookingEntity booking) {
+    final status = booking.status.toLowerCase().trim();
+    if (booking.isCompleted) {
+      return 'Selesai';
+    }
+    if (status == 'cancelled') {
+      return 'Dibatalkan';
+    }
+    if (booking.isTreatment) {
+      return 'Ditangani';
+    }
+    if (booking.isOnTheWay) {
+      return 'Dalam perjalanan';
+    }
+    if (status == 'confirmed' || status == 'scheduled') {
+      return 'Mitra disiapkan';
+    }
+    if (booking.isSearchingReplacementPartner) {
+      return 'Mencari mitra';
+    }
+    if (booking.isWaitingPartnerAcceptance) {
+      return 'Menunggu mitra';
+    }
+    return booking.status;
+  }
 }
 
 class _PremiumBookingExperience extends StatelessWidget {
@@ -815,10 +927,11 @@ class _PremiumBookingExperience extends StatelessWidget {
                     ),
                     Obx(
                       () => _StatusPill(
-                        label: isLivePolling.value ? 'Aktif' : booking.status,
-                        color: isLivePolling.value
-                            ? AppColors.success
-                            : AppColors.info,
+                        label: _statusPillLabel(
+                          booking,
+                          isLivePolling.value,
+                        ),
+                        color: _statusPillColor(booking, isLivePolling.value),
                       ),
                     ),
                   ],
@@ -843,7 +956,7 @@ class _PremiumBookingExperience extends StatelessWidget {
                           ),
                         ),
                 ),
-                if (booking.isOnTheWay) ...[
+                if (booking.canTrackPartner) ...[
                   const SizedBox(height: 10),
                   Obx(
                     () => OutlinedButton.icon(
@@ -908,6 +1021,9 @@ class _PremiumBookingExperience extends StatelessWidget {
     if (status == 'cancelled') {
       return 'Pesanan Dibatalkan';
     }
+    if (booking.isTreatment) {
+      return 'Mitra Sudah Sampai';
+    }
     if (booking.isOnTheWay) {
       return 'Pelacakan aktif';
     }
@@ -928,7 +1044,10 @@ class _PremiumBookingExperience extends StatelessWidget {
 
   static String _panelSubtitle(ServiceBookingEntity booking, double seconds) {
     final status = booking.status.toLowerCase().trim();
-    if (booking.isOnTheWay) {
+    if (booking.isTreatment) {
+      return 'Mitra sudah sampai dan layanan sedang ditangani.';
+    }
+    if (booking.canTrackPartner) {
       return 'Estimated arrival in ${_formatDuration(seconds)}';
     }
     if (status == 'completed') {
@@ -952,6 +1071,38 @@ class _PremiumBookingExperience extends StatelessWidget {
       return 'Menunggu mitra menerima pesanan sebelum pembayaran.';
     }
     return 'Kami mencari mitra yang sesuai untuk pesanan ini.';
+  }
+
+  static String _statusPillLabel(
+    ServiceBookingEntity booking,
+    bool isLivePolling,
+  ) {
+    if (booking.isCompleted) {
+      return 'Selesai';
+    }
+    if (booking.status.toLowerCase().trim() == 'cancelled') {
+      return 'Dibatalkan';
+    }
+    if (booking.isTreatment) {
+      return 'Ditangani';
+    }
+    return isLivePolling ? 'Aktif' : booking.status;
+  }
+
+  static Color _statusPillColor(
+    ServiceBookingEntity booking,
+    bool isLivePolling,
+  ) {
+    if (booking.isCompleted) {
+      return AppColors.success;
+    }
+    if (booking.status.toLowerCase().trim() == 'cancelled') {
+      return AppColors.error;
+    }
+    if (booking.isTreatment) {
+      return AppColors.primary;
+    }
+    return isLivePolling ? AppColors.success : AppColors.info;
   }
 }
 
@@ -1252,32 +1403,29 @@ class _PrimaryTrackingActions extends StatelessWidget {
 class _PremiumMapPreview extends StatelessWidget {
   const _PremiumMapPreview({
     required this.booking,
+    required this.tracking,
     required this.mapController,
     required this.routePoints,
   });
 
   final ServiceBookingEntity booking;
+  final ServiceBookingTrackingEntity? tracking;
   final MapController mapController;
   final RxList<LatLng> routePoints;
 
   @override
   Widget build(BuildContext context) {
-    if (!booking.isOnTheWay) {
+    if (!booking.canTrackPartner) {
       return _BookingStatusHero(booking: booking);
     }
 
-    if (!booking.hasTrackingCoordinates) {
+    final points = _trackingPoints(booking, tracking);
+    if (points == null) {
       return _BookingStatusHero(booking: booking);
     }
 
-    final partnerPoint = LatLng(
-      booking.partnerLatitude!,
-      booking.partnerLongitude!,
-    );
-    final patientPoint = LatLng(
-      booking.patientLatitude!,
-      booking.patientLongitude!,
-    );
+    final partnerPoint = points.partner;
+    final patientPoint = points.patient;
     final center = LatLng(
       (partnerPoint.latitude + patientPoint.latitude) / 2,
       (partnerPoint.longitude + patientPoint.longitude) / 2,
@@ -1340,6 +1488,32 @@ class _PremiumMapPreview extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  _TrackingPoints? _trackingPoints(
+    ServiceBookingEntity booking,
+    ServiceBookingTrackingEntity? tracking,
+  ) {
+    final partnerLatitude =
+        tracking?.partnerLocation?.latitude ?? booking.partnerLatitude;
+    final partnerLongitude =
+        tracking?.partnerLocation?.longitude ?? booking.partnerLongitude;
+    final patientLatitude = tracking?.destination?.latitude ??
+        booking.patientLatitude;
+    final patientLongitude = tracking?.destination?.longitude ??
+        booking.patientLongitude;
+
+    if (partnerLatitude == null ||
+        partnerLongitude == null ||
+        patientLatitude == null ||
+        patientLongitude == null) {
+      return null;
+    }
+
+    return _TrackingPoints(
+      partner: LatLng(partnerLatitude, partnerLongitude),
+      patient: LatLng(patientLatitude, patientLongitude),
     );
   }
 }
@@ -1561,6 +1735,17 @@ class _StatusHeroConfig {
       );
     }
 
+    if (booking.isTreatment) {
+      return const _StatusHeroConfig(
+        title: 'Mitra Sudah Sampai',
+        subtitle: 'Layanan sedang ditangani oleh mitra.',
+        icon: Icons.health_and_safety_rounded,
+        accentColor: AppColors.primary,
+        backgroundColor: Color(0xFFEFF8F5),
+        isFinalState: false,
+      );
+    }
+
     if (status == 'confirmed' || status == 'scheduled') {
       return const _StatusHeroConfig(
         title: 'Mitra Disiapkan',
@@ -1613,13 +1798,13 @@ class _PremiumTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = booking.status.toLowerCase().trim();
+    final statusRank = _statusRank(booking);
     final steps = [
       _TimelineData(
         title: 'Pesanan Diterima',
         subtitle: 'Permintaan layanan sudah masuk',
         time: booking.scheduledAt,
-        completed: _statusRank(status) >= 0,
+        completed: statusRank >= 0,
       ),
       _TimelineData(
         title: 'Mitra Menerima',
@@ -1627,14 +1812,23 @@ class _PremiumTimeline extends StatelessWidget {
             ? 'Menunggu konfirmasi mitra'
             : '${booking.partnerName} menerima pesanan',
         time: booking.acceptedAt,
-        completed: _statusRank(status) >= 1,
+        completed: statusRank >= 1,
       ),
       _TimelineData(
         title: 'Dalam Perjalanan',
         subtitle: 'Mitra menuju lokasi Anda',
         time: booking.startedAt,
-        completed: _statusRank(status) >= 2,
-        active: status == 'on_the_way',
+        completed: statusRank >= 2,
+        active: booking.canTrackPartner,
+      ),
+      _TimelineData(
+        title: 'Penanganan',
+        subtitle: booking.isTreatment
+            ? 'Mitra sudah sampai dan layanan sedang ditangani'
+            : 'Menunggu mitra sampai di lokasi',
+        time: booking.treatmentAt,
+        completed: statusRank >= 3,
+        active: booking.isTreatment && !booking.isCompleted,
       ),
       _TimelineData(
         title: 'Selesai',
@@ -1642,7 +1836,7 @@ class _PremiumTimeline extends StatelessWidget {
             ? 'Menunggu layanan selesai'
             : 'Layanan sudah selesai',
         time: booking.completedAt,
-        completed: _statusRank(status) >= 3,
+        completed: statusRank >= 4,
         active: booking.needsPatientCompletionConfirmation,
       ),
     ];
@@ -1659,15 +1853,26 @@ class _PremiumTimeline extends StatelessWidget {
     );
   }
 
-  static int _statusRank(String status) {
+  static int _statusRank(ServiceBookingEntity booking) {
+    if (booking.isCompleted) {
+      return 4;
+    }
+
+    if (booking.isTreatment) {
+      return 3;
+    }
+
+    final status = booking.status.toLowerCase().trim();
     switch (status) {
       case 'confirmed':
       case 'scheduled':
         return 1;
       case 'on_the_way':
         return 2;
-      case 'completed':
+      case 'treatment':
         return 3;
+      case 'completed':
+        return 4;
       case 'cancelled':
         return -1;
       case 'pending':

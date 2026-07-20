@@ -39,6 +39,7 @@ class ServiceBookingEntity {
     required this.acceptedAt,
     required this.startedAt,
     required this.completedAt,
+    required this.histories,
     required this.partnerBalanceTransactionId,
   });
 
@@ -81,6 +82,7 @@ class ServiceBookingEntity {
   final String? acceptedAt;
   final String? startedAt;
   final String? completedAt;
+  final List<ServiceBookingHistoryEntity> histories;
   final int? partnerBalanceTransactionId;
 
   bool get isPaid {
@@ -99,6 +101,7 @@ class ServiceBookingEntity {
         normalizedStatus == 'confirmed' ||
         normalizedStatus == 'scheduled' ||
         normalizedStatus == 'on_the_way' ||
+        normalizedStatus == 'treatment' ||
         normalizedStatus == 'completed';
   }
 
@@ -131,12 +134,30 @@ class ServiceBookingEntity {
         normalizedStatus == 'confirmed' ||
         normalizedStatus == 'scheduled' ||
         normalizedStatus == 'on_the_way' ||
+        normalizedStatus == 'treatment' ||
         normalizedStatus == 'completed';
   }
 
   bool get isOnTheWay => status.toLowerCase().trim() == 'on_the_way';
 
+  bool get isTreatment {
+    final normalizedStatus = status.toLowerCase().trim();
+    return normalizedStatus == 'treatment' ||
+        histories.any((history) => history.isTreatment);
+  }
+
+  bool get canTrackPartner => isOnTheWay && !isTreatment;
+
   bool get isCompleted => status.toLowerCase().trim() == 'completed';
+
+  String? get treatmentAt {
+    for (final history in histories) {
+      if (history.isTreatment && history.createdAt != null) {
+        return history.createdAt;
+      }
+    }
+    return null;
+  }
 
   bool get needsPatientCompletionConfirmation {
     return isPaid &&
@@ -152,6 +173,7 @@ class ServiceBookingEntity {
         (normalizedStatus == 'confirmed' ||
             normalizedStatus == 'scheduled' ||
             normalizedStatus == 'on_the_way' ||
+            normalizedStatus == 'treatment' ||
             normalizedStatus == 'completed');
   }
 
@@ -161,6 +183,7 @@ class ServiceBookingEntity {
     final isRunningOrAcceptedStatus =
         normalizedStatus == 'accepted' ||
         normalizedStatus == 'on_the_way' ||
+        normalizedStatus == 'treatment' ||
         normalizedStatus == 'in_progress' ||
         normalizedStatus == 'completed' ||
         normalizedStatus == 'cancelled';
@@ -178,6 +201,39 @@ class ServiceBookingEntity {
         patientLongitude != null &&
         partnerLatitude != null &&
         partnerLongitude != null;
+  }
+}
+
+class ServiceBookingHistoryEntity {
+  const ServiceBookingHistoryEntity({
+    required this.id,
+    required this.type,
+    required this.status,
+    required this.title,
+    required this.notes,
+    required this.createdAt,
+  });
+
+  final int? id;
+  final String? type;
+  final String? status;
+  final String? title;
+  final String? notes;
+  final String? createdAt;
+
+  bool get isTreatment {
+    final values = <String?>[type, status, title, notes]
+        .whereType<String>()
+        .map((value) => value.toLowerCase().trim());
+    return values.any(
+      (value) =>
+          value == 'treatment' ||
+          value.contains('treatment') ||
+          value.contains('ditangani') ||
+          value.contains('di tangani') ||
+          value.contains('penanganan') ||
+          value.contains('sampai'),
+    );
   }
 }
 

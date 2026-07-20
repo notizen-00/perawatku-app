@@ -225,6 +225,12 @@ class _ActiveOrderCard extends StatelessWidget {
       return const _StatusStyle('Sedang berjalan', AppColors.info);
     }
 
+    if (status == 'treatment' ||
+        status == 'ditangani' ||
+        status == 'di tangani') {
+      return const _StatusStyle('Ditangani', AppColors.primary);
+    }
+
     if (status == 'pending' ||
         status == 'processing' ||
         status == 'scheduled') {

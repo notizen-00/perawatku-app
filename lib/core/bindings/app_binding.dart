@@ -51,6 +51,7 @@ import '../../features/service_booking/domain/usecases/check_promo_code_use_case
 import '../../features/service_booking/domain/usecases/confirm_service_booking_completion_use_case.dart';
 import '../../features/service_booking/domain/usecases/create_service_booking_use_case.dart';
 import '../../features/service_booking/domain/usecases/get_service_booking_services_use_case.dart';
+import '../../features/service_booking/domain/usecases/get_service_booking_tracking_use_case.dart';
 import '../../features/service_booking/domain/usecases/get_service_booking_use_case.dart';
 import '../../features/service_booking/domain/usecases/pay_service_booking_use_case.dart';
 import '../../features/service_booking/domain/usecases/rematch_service_booking_use_case.dart';
@@ -195,6 +196,12 @@ class AppBinding extends Bindings {
 
     Get.lazyPut<GetServiceBookingUseCase>(
       () => GetServiceBookingUseCase(Get.find<ServiceBookingRepository>()),
+      fenix: true,
+    );
+
+    Get.lazyPut<GetServiceBookingTrackingUseCase>(
+      () =>
+          GetServiceBookingTrackingUseCase(Get.find<ServiceBookingRepository>()),
       fenix: true,
     );
 
